@@ -75,7 +75,19 @@ python ground.py                  # Qwen grounds vs evidence -> signal_retrieval
 python nli_grounding.py && python ensemble.py
 ```
 
-## Next levers
-- Rerank retrieved passages (bge-reranker-v2-m3, already on the box) before grounding.
-- Query expansion with response entities; larger top-k; passage-level (not lead-only).
+## Ablation: query expansion (tried — neutral)
+
+`retrieve2.py` = dual-query retrieval (embed the **question** *and* the **response**,
+union, top-6) + token-safe grounding (`ground.py` now truncates prompts to fit
+Qwen's 4096 limit — top-6 Bengali evidence otherwise overflows and vLLM hard-errors).
+
+Result: the retrieval *signal* nudged up (samples 0.6564 → 0.6635; no-context
+per-branch OOF 0.6527 → 0.6618), but the **pooled ensemble was flat within noise**
+(overall 0.7925 vs 0.7821 — threshold/pooling wiggle on 299 rows). bge-m3 on the
+question alone already retrieves well. **Kept v1 (single-query, top-5) as canonical.**
+
+## Next levers (untried)
+- Rerank with `bge-reranker-v2-m3` (on the box) before grounding — precision bump.
+- Passage-level chunking beyond the first 3 chunks/article; larger top-k with the
+  token-safe grounding now that overflow is handled.
 - C1 probe set to track the band the LB actually rewards.

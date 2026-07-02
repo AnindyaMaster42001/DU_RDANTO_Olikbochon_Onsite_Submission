@@ -1,9 +1,8 @@
-"""Phase C — retrieval grounding: does the response follow from the retrieved evidence?
+"""Phase C (fixed) — retrieval grounding with token-safe prompt truncation.
 
-For each no-context row, feed the top-k retrieved Bengali-wiki passages as the
-"passage" and ask the judge (grounding + self-consistency). Emits
-signal_retrieval.json. Reuses the box's vllm env, local model, memory-capped.
-Run: HF_HUB_OFFLINE=1 VLLM_USE_FLASHINFER_SAMPLER=0 <env python> -u ground.py
+Same as ground.py but fits every prompt under the model's token limit (Bengali
+tokenizes densely, so top-6 evidence can overflow 4096 -> vLLM hard-errors).
+Emits signal_retrieval.json.
 """
 import csv
 import json
@@ -17,8 +16,9 @@ MODEL = "/home/mb2/Qwen2.5-14B-AWQ"
 N_VOTES = 5
 GPU_MEM_UTIL = 0.18
 MIN_FREE_GIB = 19
-MAX_EV_CHARS = 3200
+TOKEN_BUDGET = 3800    # leave room for generation within 4096
 llm = None
+tokenizer = None
 
 
 def find(part, ext=None):
@@ -59,16 +59,33 @@ def verdict(text, default=0.5):
     return default
 
 
-def prompt(row, evidence):
-    ev = "\n\n".join(evidence)[:MAX_EV_CHARS] if evidence else "(no relevant passage found)"
+def prompt_text(q, a, ev):
     return (
         "Verify a Bengali answer against retrieved encyclopedia passages.\n\n"
-        f"Passages:\n{ev}\n\nQuestion: {row['prompt_bn']}\nAnswer: {row['response_bn']}\n\n"
+        f"Passages:\n{ev}\n\nQuestion: {q}\nAnswer: {a}\n\n"
         "Is the answer correct AND supported by the passages? If the passages do "
         "not contain enough information, judge whether the answer is factually "
-        "correct. Think in one short line, then reply on a new line with exactly "
-        "YES or NO."
+        "correct. Think in one short line, then reply on a new line with exactly YES or NO."
     )
+
+
+def n_tokens(p):
+    return len(tokenizer(p, add_special_tokens=False)["input_ids"])
+
+
+def fit_prompt(row, evidence):
+    q = str(row["prompt_bn"])
+    a = str(row["response_bn"])[:1200]
+    ev = "\n\n".join(evidence) if evidence else "(no relevant passage found)"
+    for _ in range(8):
+        p = prompt_text(q, a, ev)
+        if n_tokens(p) <= TOKEN_BUDGET:
+            return p
+        if len(ev) > 300:
+            ev = ev[:int(len(ev) * 0.7)]
+        else:
+            q = q[:800]  # last resort for a pathologically long question
+    return prompt_text(q, a, ev[:300])
 
 
 VOTE = SamplingParams(temperature=0.7, max_tokens=64, n=N_VOTES)
@@ -79,7 +96,8 @@ def ground(rows, split, evidence):
     noc = [i for i, r in enumerate(rows) if not has_context(r)]
     keys = {i: f"{split}:{rows[i].get('id', i)}" for i in noc}
     print(f"[{split}] grounding {len(noc)} no-context rows vs retrieved evidence...", flush=True)
-    for i, o in zip(noc, chat([prompt(rows[i], evidence.get(keys[i], [])) for i in noc], VOTE)):
+    prompts = [fit_prompt(rows[i], evidence.get(keys[i], [])) for i in noc]
+    for i, o in zip(noc, chat(prompts, VOTE)):
         votes = [v for v in (verdict(c.text) for c in o.outputs) if v in (0.0, 1.0)]
         vals[i] = float(np.mean(votes)) if votes else 0.5
     return vals
@@ -95,7 +113,7 @@ def best_threshold(y, prob):
 
 
 def main():
-    global llm
+    global llm, tokenizer
     free_gib = torch.cuda.mem_get_info()[0] / 2**30
     print(f"GPU free {free_gib:.1f} GiB", flush=True)
     if free_gib < MIN_FREE_GIB:
@@ -107,6 +125,7 @@ def main():
 
     llm = LLM(model=MODEL, dtype="half", max_model_len=4096, tensor_parallel_size=1,
               gpu_memory_utilization=GPU_MEM_UTIL, enforce_eager=True)
+    tokenizer = llm.get_tokenizer()
 
     s_vals = ground(samples, "samples", evidence)
     y = [s["label"] for s in samples]
