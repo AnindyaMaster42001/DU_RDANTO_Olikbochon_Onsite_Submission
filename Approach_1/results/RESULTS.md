@@ -91,3 +91,35 @@ question alone already retrieves well. **Kept v1 (single-query, top-5) as canoni
 - Passage-level chunking beyond the first 3 chunks/article; larger top-k with the
   token-safe grounding now that overflow is handled.
 - C1 probe set to track the band the LB actually rewards.
+
+---
+
+## Update: 7-signal ensemble (+ Approach_0 judge & self-verify) — LB 0.765
+
+Approach_0's Kaggle judge run (Qwen2.5-14B-**GPTQ**, greedy, different prompts
+than Approach_1's self-consistency judge; LB **0.748** standalone) exports two
+extra signals. `import_a0_signals.py` converts them (plus the substring rule)
+into ensemble format; `ensemble.py` picks them up with zero code changes.
+
+| | 5 signals | **7 signals** |
+|---|---|---|
+| Overall OOF macro-F1 | 0.7925 | **0.8059** |
+| Context | 0.9009 | **0.9087** |
+| No-context | 0.6748 | **0.7078** |
+| **Public LB** | **0.752** | **0.765** |
+
+- The two judges are *complementary*, not redundant: `a0judge` earns weight
+  1.67 in the context branch (alongside substring 2.33 and judge 1.36) and
+  0.78 in no-context (alongside retrieval 1.46 and cross-lingual 1.02).
+  Different prompts + different quantization = decorrelated errors.
+- `a0selfv` (answer-then-compare) adds a small 0.26 no-context weight.
+- Both LB checks landed on the local→LB line (−0.03/−0.04 from OOF), so the
+  sample split keeps being a trustworthy compass.
+
+Raw Approach_0 verdicts live in `Approach_0/results/signals_{samples,test}.json`.
+
+### Next levers (updated)
+- Reranker (`bge-reranker-v2-m3`) before grounding — precision bump on retrieval.
+- Second judge model (Gemma-2-27B / TituLLM) as an 8th signal — the a0judge
+  gain shows judge diversity pays.
+- C1 probe set — still our only visibility into the band the private LB weights.

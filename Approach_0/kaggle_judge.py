@@ -26,22 +26,31 @@ from pathlib import Path
 import torch
 from vllm import LLM, SamplingParams
 
-MODEL = "Qwen/Qwen2.5-14B-Instruct-AWQ"
+MODEL = "Qwen/Qwen2.5-14B-Instruct-GPTQ-Int4"  # GPTQ runs on P100 (sm60) and T4 (sm75); AWQ needs sm75+
 MAX_CTX_CHARS = 3500
 
 # ---------------------------------------------------------------- data
-KAGGLE_INPUT = Path("/kaggle/input/bengali-hallucination")
-DATA = KAGGLE_INPUT if KAGGLE_INPUT.exists() else Path(".")
+KAGGLE_INPUT = Path("/kaggle/input")
+if KAGGLE_INPUT.exists():
+    for p in sorted(KAGGLE_INPUT.rglob("*")):
+        if p.is_file():
+            print("input file:", p)
 
 
 def find(part):
-    hits = [p for p in DATA.iterdir() if part in p.name.lower()]
-    assert hits, f"no file matching {part!r} in {DATA}"
-    return hits[0]
+    roots = [KAGGLE_INPUT, Path(".")]
+    for root in roots:
+        if root.exists():
+            hits = [
+                p for p in root.rglob("*") if p.is_file() and part in p.name.lower()
+            ]
+            if hits:
+                return hits[0]
+    raise FileNotFoundError(f"no file matching {part!r} in {roots}")
 
 
-samples = json.load(open(find("samples"), encoding="utf-8"))
-test_rows = list(csv.DictReader(open(find("test"), encoding="utf-8")))
+samples = json.load(open(find("samples.json"), encoding="utf-8"))
+test_rows = list(csv.DictReader(open(find("test set"), encoding="utf-8")))
 print(f"samples: {len(samples)}  test rows: {len(test_rows)}")
 
 
