@@ -1,0 +1,14 @@
+# Core (nli_grounding.py, ensemble.py) — CPU is fine, GPU faster
+torch
+transformers>=4.40
+sentencepiece          # mDeBERTa-v3 tokenizer
+protobuf
+scikit-learn
+numpy
+
+# Retrieval (retrieval.py)
+rank-bm25
+sentence-transformers
+
+# Judge (judge.py) — Kaggle GPU notebook only; heavy, install there
+# vllm

@@ -14,6 +14,12 @@ env/
 *.bin
 *.safetensors
 
+# Generated artifacts (regenerate by running the scripts)
+Approach_1/signal_*.json
+Approach_1/submission_*.csv
+Approach_1/retrieved_evidence.json
+Approach_1/*_probs.json
+
 # OS / editor cruft
 .DS_Store
 .vscode/
