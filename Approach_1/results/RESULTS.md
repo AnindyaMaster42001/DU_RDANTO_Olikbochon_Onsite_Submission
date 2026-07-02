@@ -1,70 +1,81 @@
 # Approach_1 — full-run results
 
-Full pipeline (NLI → judge → ensemble) run on an RTX PRO 6000 (Blackwell) GPU,
-Qwen2.5-14B-Instruct-AWQ judge via vLLM (self-consistency, 5 votes on no-context
-rows). Numbers below are **honest out-of-fold** on the 299 labeled samples
-(per-branch nested CV in `ensemble.py`).
+Full pipeline run on an RTX PRO 6000 (Blackwell) GPU: substring rule, NLI,
+Qwen2.5-14B-Instruct-AWQ judge (self-consistency), cross-lingual check, and a
+retrieval branch grounded in the **latest Bengali Wikipedia** — stacked by a
+per-branch nested-CV meta-model. Numbers are **honest out-of-fold** on the 299
+labeled samples (`ensemble.py`).
 
 ## Headline (honest nested-CV OOF)
 
-| Branch | Approach_0 baseline | judge (3 signals) | **+ cross-lingual (4 signals)** |
+| Branch | Baseline | +judge (3 sig) | +cross-lingual (4) | **+retrieval (5)** |
+|---|---|---|---|---|
+| **Overall macro-F1** | 0.6823 (LB 0.666) | 0.7647 | 0.7787 | **0.7925** |
+| Context | 0.894 | 0.901 | 0.901 | **0.901** |
+| No-context | **0.345** | 0.649 | 0.670 | **0.675** |
+
+The no-context branch (the whole opportunity, and where the private LB's C1 weight
+concentrates) went **0.345 → 0.675** — nearly doubled. Overall **+0.11 over baseline**.
+
+## Signals & how the meta-model weights them
+
+| Signal | Context F1 | No-context F1 | no-ctx weight |
 |---|---|---|---|
-| **Overall macro-F1** | 0.6823 (LB 0.666) | 0.7647 | **0.7787** |
-| Context | 0.894 (substring) | 0.901 | **0.901** |
-| No-context | **0.345** | 0.649 | **0.670** |
+| substring (rule) | **0.894** | — | 0 |
+| judge (Qwen-14B, self-consistency) | 0.801 | 0.649 | 1.09 |
+| cross-lingual (answer-in-English + agree) | — | 0.615 | 1.09 |
+| **retrieval** (bge-m3 → wiki → Qwen grounds) | — | **0.656** | **1.55** |
+| NLI (mDeBERTa-xnli) | 0.635 | — | 0 |
 
-The no-context branch — the whole opportunity — went from 0.345 → 0.67. First the
-Qwen-14B fact-checking judge (parametric), then a **cross-lingual consistency**
-signal (answer in English, check the Bengali response agrees) added a
-*complementary* lift: the no-context meta-model weights both
-(`judge 1.39 + crosslingual 1.22`).
+- **Context** is solved by `substring` (2.57) + `judge` (2.07); NLI down-weighted
+  (0.92), cross-lingual/retrieval ~0. NLI *underperformed* substring (0.635 vs 0.894)
+  — a short extractive answer is a poor NLI hypothesis.
+- **No-context**: `retrieval` gets the **largest** weight (1.55), with judge and
+  cross-lingual both contributing (1.09 each). All three are *complementary* — the
+  three attack the closed-book problem from different angles (parametric, cross-lingual,
+  external-knowledge).
 
-## Per-signal (samples pass)
+**Why retrieval matters:** in the cross-lingual pass, **~44% of no-context questions
+abstained** — Qwen-14B was UNKNOWN in English too. Those deep-C1 (Bangladesh-specific)
+facts are beyond any parametric model; only the wiki-grounded retrieval branch can
+reach them, which is why it earns the top no-context weight.
 
-| Signal | Context macro-F1 | No-context macro-F1 |
-|---|---|---|
-| substring (rule) | **0.894** | — (0.5 constant) |
-| judge (Qwen2.5-14B, self-consistency) | 0.801 | 0.649 |
-| cross-lingual (answer-in-English + agreement) | — | 0.615 |
-| NLI (mDeBERTa-xnli) | 0.635 | — |
+## Corpus (retrieval branch)
 
-**NLI underperformed the substring rule on context** (0.635 vs 0.894) — feeding a
-short extractive answer as an NLI hypothesis is a poor fit. The ensemble meta-model
-correctly handled this: `context {substring 2.57, judge 2.08, nli 0.92, crosslingual 0}`,
-`no-context {judge 1.39, crosslingual 1.22, nli 0, substring 0}`.
-
-**Key ceiling finding:** in the cross-lingual pass, **~44% of no-context questions
-abstained** — Qwen-14B replied UNKNOWN in English too. That fraction is genuinely
-beyond the model's parametric knowledge (deep C1, Bangladesh-specific) and is
-exactly what **retrieval** (Step 3) must cover to push no-context past ~0.67.
+- Source: **`dumps.wikimedia.org/bnwiki/latest`** (dump `20260701`, current) — NOT a
+  stale pre-cleaned HF snapshot. Raw wikitext → `wikiextractor` (Python 3.10) →
+  **438,788 articles** → chunked to **335,628 passages**.
+- Retriever: **BAAI/bge-m3** dense (normalized CLS), top-5 per no-context question.
+- Grounding: Qwen-14B judges whether the response follows from the retrieved passages
+  (self-consistency, 5 votes).
 
 ## Caveat
 
-The combined "overall ~0.76" line re-picks the decision threshold on the OOF
-predictions (mildly optimistic). The stricter per-branch nested-CV OOF was
-**context 0.870 / no-context 0.581**. Treat ~0.72–0.76 as the honest range.
+The combined "overall" line re-thresholds on the OOF (mildly optimistic). Stricter
+per-branch nested-CV OOF: context 0.870 / no-context 0.653. Treat ~0.76–0.79 as the
+honest range. 299 samples → real variance; trust the *direction*, confirm on the LB.
 
 ## Files
 
-- `signal_judge.json`, `signal_crosslingual.json` — per-row P(faithful) from the
-  Qwen judge and the cross-lingual check (samples + test).
-  **Reuse these to re-run the ensemble without a GPU.**
-- `submission_ensemble.csv` — final 4-signal submission (1425 hallucinated / 1091 faithful).
-- `submission_judge.csv` — judge-only submission (1523 / 993).
+- `signal_judge.json`, `signal_crosslingual.json`, `signal_retrieval.json` — per-row
+  P(faithful). **Reuse to re-run the ensemble without a GPU.**
+- `submission_ensemble.csv` — final 5-signal submission (1475 hallucinated / 1041 faithful).
 
 ## Reproduce
 
 ```bash
-# GPU (Kaggle T4x2/P100, or any CUDA box): produce the two judge signals
+# GPU: three signals (Qwen-14B via vLLM; bge-m3 for retrieval)
 python kaggle_judge.py            # -> signal_judge.json
 python crosslingual.py            # -> signal_crosslingual.json
-# CPU: substring + NLI signals, then stitch everything
-python nli_grounding.py && python ensemble.py   # ensemble auto-loads all signal_*.json
+# retrieval: fetch latest bnwiki dump, extract (py3.10 wikiextractor), then:
+python prep_wiki.py               # extracted/**/wiki_* -> passages.jsonl
+python retrieve.py                # bge-m3 dense -> retrieved_evidence.json
+python ground.py                  # Qwen grounds vs evidence -> signal_retrieval.json
+# CPU: substring + NLI, then stitch all five
+python nli_grounding.py && python ensemble.py
 ```
 
-## Next levers (not yet done)
-
-- **Retrieval branch** (`retrieval.py`) — ground no-context C1 questions in Bengali
-  Wikipedia instead of the judge's parametric memory. Expected to lift no-context
-  further; needs the wiki dump attached.
-- Reformulate NLI (question+answer → declarative claim) or drop it for context.
+## Next levers
+- Rerank retrieved passages (bge-reranker-v2-m3, already on the box) before grounding.
+- Query expansion with response entities; larger top-k; passage-level (not lead-only).
+- C1 probe set to track the band the LB actually rewards.
