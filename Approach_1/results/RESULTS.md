@@ -123,3 +123,26 @@ Raw Approach_0 verdicts live in `Approach_0/results/signals_{samples,test}.json`
 - Second judge model (Gemma-2-27B / TituLLM) as an 8th signal — the a0judge
   gain shows judge diversity pays.
 - C1 probe set — still our only visibility into the band the private LB weights.
+
+---
+
+## Update: 8th signal — Qwen2.5-32B judge (single greedy pass)
+
+Meta-model experiments (`experiments_meta.py`, 5-seed x 5-fold) showed the
+7-signal stacker is saturated: honest seed-averaged OOF is **0.7946 +-0.0089**
+(the 0.8059 previously quoted was one favorable seed), and abstain indicators,
+BanglaBERT, branch pruning, and C sweeps all fail to beat it. Only new signal
+strength moves it, so: `kaggle_judge32.py` = Qwen2.5-**32B**-Instruct-GPTQ-Int4
+on T4x2, one YES/NO per row (~30 min total), stitched by `stitch32.py`.
+
+| | 7 signals | **8 signals** |
+|---|---|---|
+| OOF macro-F1 (5-seed mean) | 0.7946 +-0.0089 | **0.8032 +-0.0032** |
+| No-context | 0.6942 | **0.7169** |
+| Context | 0.9026 | 0.8941 |
+
+- judge32 is the strongest standalone no-context signal (0.6618) and takes the
+  top meta-weights (ctx 1.53 / noctx 1.33) on arrival — parametric scale
+  directly buys C1-adjacent knowledge.
+- Seed variance drops 3x: the ensemble got more stable, not just better.
+- `submission_final.csv` = the 8-signal predictions (LB pending).
