@@ -54,17 +54,6 @@ def find_model_dir(hint):
     return sorted(hits, key=lambda p: len(str(p)))[0]
 
 
-# ----------------------------------------------------------------- offline vllm
-try:
-    import vllm  # noqa: F401  (preinstalled or from a previous cell)
-except ImportError:
-    wheels = find_file(r"^vllm-.*\.whl$").parent
-    subprocess.run(
-        [sys.executable, "-m", "pip", "install", "-q", "--no-index",
-         f"--find-links={wheels}", "vllm"],
-        check=True,
-    )
-
 # ----------------------------------------------------------------- data
 import csv  # noqa: E402
 
@@ -215,6 +204,20 @@ json.dump(evidence, open(WORK / "evidence.json", "w"), ensure_ascii=False)
 del rr, emb
 gc.collect()
 torch.cuda.empty_cache()
+
+# ------------------------------------------------- offline vllm install
+# Deliberately AFTER the NLI/retrieval stages: the wheel set upgrades torch
+# and the CUDA runtime libs, which breaks the image-native encoder stack
+# (libnvrtc mismatch) but is fine for the vLLM subprocess stages.
+try:
+    import vllm  # noqa: F401  (preinstalled or from a previous cell)
+except ImportError:
+    wheels = find_file(r"^vllm-.*\.whl$").parent
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "-q", "--no-index",
+         f"--find-links={wheels}", "vllm"],
+        check=True,
+    )
 
 # ----------------------------------------------------------------- 4+5. vLLM stages
 # Rows are exchanged with the stage subprocesses via JSON; each stage loads
