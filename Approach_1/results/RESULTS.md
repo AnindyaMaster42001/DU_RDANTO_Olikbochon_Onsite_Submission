@@ -166,3 +166,29 @@ still ~0.72 OOF and small signal tweaks now drown in validation noise:
    bnwiki index box.
 2. 32B judge + self-consistency + retrieval-grounded prompts (~90 min Kaggle
    run) — merge the two strongest ideas.
+
+---
+
+## Error analysis: the miss profile is one-sided (drives the next runs)
+
+On the 167 no-context sample rows, the 23 rows that **every** signal gets
+wrong-or-abstains-on are **all faithful** (label=1) — not a single hallucinated
+row evades all signals. Our judges are systematically over-skeptical: true but
+obscure (deep-C1) answers get called hallucinated. 29% of faithful no-context
+rows are unanimously miscalled; that one-sided bias IS the gap to the top of
+the LB. Context branch is near-solved (substring ∧ judge32 both wrong: 3/132).
+Judge-judge agreement is 0.74–0.86 — another generic judge adds nothing.
+
+Two kernels launched to attack exactly this:
+
+1. **`kaggle_judge32v2.py`** — anti-skepticism 32B judging: three-way
+   YES/NO/UNSURE (UNSURE→0.5 instead of a wrong NO), logprob-soft outputs,
+   few-shot exemplars that include true-but-obscure local facts, self-verify.
+   → `signal_j32lp/j32fs/j32sv`
+2. **`kaggle_wiki_retrieve.py`** — high-recall evidence: fresh HF bnwiki,
+   6 chunks/article, dual query (q and q+response) top-10 union,
+   bge-reranker-v2-m3 → top-5 with scores → `retrieved_evidence.json`;
+   a 32B grounding kernel follows on its output.
+
+Stitching stays honest: 5-seed × 5-fold OOF via `stitch32.py`/`experiments_meta.py`;
+no submission unless decisively better than 0.8032.
