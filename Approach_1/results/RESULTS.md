@@ -146,3 +146,23 @@ on T4x2, one YES/NO per row (~30 min total), stitched by `stitch32.py`.
   directly buys C1-adjacent knowledge.
 - Seed variance drops 3x: the ensemble got more stable, not just better.
 - `submission_final.csv` = the 8-signal predictions (LB pending).
+
+### LB check: 8-signal scored 0.759 (7-signal remains 0.765)
+
+Public LB came back **0.759** — below the 7-signal's 0.765 despite the better
+honest OOF (0.8032 vs 0.7946). Read: a +0.009 OOF gain on 299 rows does not
+reliably transfer through public-LB split noise (~1.2k rows); these two
+ensembles are **statistically indistinguishable** with the data we have. Do
+not chase public-LB deltas this small in either direction.
+
+**Final-selection recommendation (Phase 1 deadline):** select BOTH
+`submission_ensemble7.csv` (best public, 0.765) and `submission_final.csv`
+(best honest OOF, lowest seed variance) as the two finals — hedges the
+public/private split noise instead of betting on it.
+
+**Where a real (step-change) gain must come from** — the no-context branch is
+still ~0.72 OOF and small signal tweaks now drown in validation noise:
+1. Retrieval upgrades (reranker, deeper chunking, larger top-k) — needs the
+   bnwiki index box.
+2. 32B judge + self-consistency + retrieval-grounded prompts (~90 min Kaggle
+   run) — merge the two strongest ideas.
