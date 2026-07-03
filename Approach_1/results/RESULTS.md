@@ -192,3 +192,32 @@ Two kernels launched to attack exactly this:
 
 Stitching stays honest: 5-seed × 5-fold OOF via `stitch32.py`/`experiments_meta.py`;
 no submission unless decisively better than 0.8032.
+
+---
+
+## Evidence grounding pays off: LB 0.765 → 0.803 (rank 8)
+
+`signal_ret32` (32B judges answers against reranked bnwiki evidence, UNSURE-safe
+three-way verdicts) is the **strongest no-context signal to date**: standalone
+0.7530 (prev best 0.6877), 0.76 accuracy while decisive on all rows, rescues
+7/23 previously-hopeless faithful rows. Stitched:
+
+| config | 5-seed OOF | noctx | Public LB |
+|---|---|---|---|
+| base8 | 0.8032 | 0.7169 | 0.759 |
+| **base8 + j32sv + ret32 (submitted)** | **0.8327 ± 0.008** | **0.7775** | **0.803** |
+
+- ret32 takes the largest noctx meta-weight ever (1.88); j32sv adds 1.05.
+- Adding j32fs/j32lp on top *hurts* (0.827/0.820) — signal count is again
+  saturating; prune, don't hoard.
+- OOF→LB transfer held exactly (−0.03): the honest harness is predictive.
+- Ops note: Bengali ≈1+ token/char in Qwen vocab — grounding prompts need
+  max_model_len 8192; vLLM 0.24 dropped `truncate_prompt_tokens` from
+  SamplingParams.
+
+### Next levers
+- **bn.wiktionary corpus** for word-meaning/grammar questions (~⅓ of the
+  remaining hopeless rows; Wikipedia is the wrong book for them).
+- Fresh bnwiki dump (HF snapshot is 2023-11) once the pipeline is trusted.
+- Phase-2 packaging: chain wiki-index → grounding → judges → stitch into one
+  offline notebook; evidence + weights as Kaggle datasets.

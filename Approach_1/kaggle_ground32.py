@@ -23,7 +23,10 @@ import torch
 from vllm import LLM, SamplingParams
 
 MODEL = "Qwen/Qwen2.5-32B-Instruct-GPTQ-Int4"
-EV_CHARS = 700  # per passage
+# Bengali ~1+ token/char in Qwen's vocab: 5x700-char passages overflowed 4096.
+MAX_LEN = 8192
+EV_CHARS = 600  # per passage
+EV_TOP = 4
 KAGGLE_INPUT = Path("/kaggle/input")
 
 
@@ -50,7 +53,7 @@ def ground_prompt(row, ev):
     q, a = str(row["prompt_bn"]), str(row["response_bn"])
     blocks = "\n\n".join(
         f"[Evidence {k + 1} — {p['title']}]\n{p['text'][:EV_CHARS]}"
-        for k, p in enumerate(ev[:5])
+        for k, p in enumerate(ev[:EV_TOP])
     )
     return (
         "You are verifying an answer to a Bengali question using retrieved "
@@ -68,7 +71,7 @@ def ground_prompt(row, ev):
 llm = LLM(
     model=MODEL,
     dtype="half",
-    max_model_len=4096,
+    max_model_len=MAX_LEN,
     tensor_parallel_size=torch.cuda.device_count(),
     gpu_memory_utilization=0.92,
 )
