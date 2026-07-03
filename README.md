@@ -21,6 +21,12 @@ Approach_0/
   train_local.py           fine-tune BanglaBERT (5-fold CV -> test probs, ensemble signal)
   kaggle_judge.py/.ipynb   #2 LLM-as-judge (Qwen2.5-14B) — grounding + self-verify
   submission_baseline.csv  baseline predictions (LB 0.666)
+
+Phase_2/
+  README.md                package doc: system, models, assembly, verification
+  phase2_pipeline.py/.ipynb  single offline notebook: raw test CSV -> submission.csv
+  snapshots/               kernels that pin every external artifact on Kaggle
+                           (2x Qwen GPTQ, encoders, vLLM wheels, bnwiki index)
 ```
 
 ## Core idea
