@@ -100,6 +100,5 @@ evidence-grounding design are in `../Approach_1/results/RESULTS.md`.
 - [x] Runnable Kaggle notebook, offline, reproduces Phase-1 predictions
       end-to-end within limits — `bengali-phase2-repro`, verified 4.96 h / LB 0.800
 - [x] 4-page paper report, ACL format, single PDF — `paper/paper.pdf`
-      (**TODO: replace teammate placeholder names in `paper/paper.tex`**)
 - [x] README describing environment, weights, and external models — this file
 - [ ] Submit via the form linked from the Discussion tab at the start of Phase 2
