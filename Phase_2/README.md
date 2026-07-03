@@ -71,12 +71,18 @@ rows, then writes `submission.csv` (`id,label`; 0 = hallucinated,
 1 = faithful). Measured runtime on T4 x2 for 2,516 rows: see verification
 below; the 9 h budget holds with ample margin.
 
-## Verification
+## Verification (completed 2026-07-04)
 
-The packaged notebook was run against the Phase-1 test set with internet
-disabled to confirm (a) it runs to completion offline within limits and (b)
-it reproduces our submitted predictions. Result: recorded in
-`results/RESULTS.md` after the verification run.
+The packaged notebook was run against the Phase-1 test set with **internet
+disabled** and only the pinned artifacts attached
+([bengali-phase2-repro](https://www.kaggle.com/code/anindyakundu42001/bengali-phase2-repro)):
+
+- ran to completion fully offline in **4.96 h** on T4 x2 (9 h budget; the 32B
+  stage is the long pole at ~3.9 h, the 14B stage ~1 h, everything else <5 min)
+- output agrees with our submitted 10-signal predictions on **97.7%** of rows
+- submitted to the leaderboard directly: **public LB 0.800** (10-signal
+  reference: 0.803 — identical within split noise, as the OOF comparison
+  predicted: 0.8311 vs 0.8327)
 
 ## Why these seven signals (and not our full ten)
 

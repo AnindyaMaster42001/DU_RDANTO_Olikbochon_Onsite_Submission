@@ -221,3 +221,18 @@ three-way verdicts) is the **strongest no-context signal to date**: standalone
 - Fresh bnwiki dump (HF snapshot is 2023-11) once the pipeline is trusted.
 - Phase-2 packaging: chain wiki-index → grounding → judges → stitch into one
   offline notebook; evidence + weights as Kaggle datasets.
+
+---
+
+## Phase-2 package verified: offline single notebook, LB 0.800
+
+`Phase_2/` now contains the full solution package. The portable 7-signal
+pipeline (drops the three workstation-only signals; OOF 0.8311 vs 0.8327)
+ran **fully offline** in a Kaggle kernel with all artifacts pinned:
+**4.96 h on T4 x2**, 97.7% agreement with the 10-signal submission,
+**public LB 0.800** vs 0.803. Recommended Phase-1 finals: the 10-signal
+`submission_ret32.csv` (0.803) + the package output (0.800, exactly
+reproducible by the organizers' rerun).
+
+Ops note for the paper: the vLLM wheel set upgrades torch/CUDA libs and must
+install AFTER the image-native encoder stages (libnvrtc mismatch otherwise).
