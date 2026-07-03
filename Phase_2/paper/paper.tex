@@ -1,0 +1,257 @@
+% Phase-2 paper report — compile with xelatex (Bengali examples need fontspec).
+%   latexmk -xelatex paper.tex
+\documentclass[11pt]{article}
+\usepackage[final]{acl}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{fontspec}
+\newfontfamily\bengalifont{Noto Sans Bengali}
+\newcommand{\bn}[1]{{\bengalifont #1}}
+
+\title{Believing True Things: Evidence-Grounded Verification for\\Bengali LLM Hallucination Detection}
+
+% TODO: replace teammate placeholders with real names before submission.
+\author{Anindya Kundu \and Teammate Two \and Teammate Three \and Teammate Four \\
+  Team \textit{DU\_RDANTO} \\
+  University of Dhaka \\
+  \texttt{anindyakundu00@gmail.com}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We describe our system for the \bn{অলীকবচন} Bengali LLM Hallucination
+Detection Challenge: given a Bengali prompt, a candidate response, and an
+optional supporting passage, predict whether the response is faithful or
+hallucinated. Our system stacks seven per-row signals---lexical grounding,
+multilingual NLI, two open-weight LLM judges (14B and 32B), self-verification,
+and retrieval-grounded verification against a Bengali-Wikipedia index---with a
+per-branch logistic regression trained on the 299 released samples. Our
+central finding is that the errors of judge-based detectors are
+\emph{one-sided}: on the no-context split of the validation samples, every row
+that all baseline signals got wrong was \emph{faithful}. LLM judges do not
+fail by believing hallucinations; they fail by disbelieving true but obscure,
+culturally specific facts. Two design responses follow: verdicts with an
+explicit \textsc{unsure} lane that maps to neutrality rather than a wrong
+``hallucinated,'' and retrieval-grounded verification that can prove obscure
+true answers true. These raised our no-context macro-F1 from 0.694 to 0.778
+(out-of-fold) and our public leaderboard score from 0.765 to 0.803. We also
+report a validation methodology for 299-sample regimes---seed-averaged nested
+cross-validation---without which we repeatedly mistook fold noise for
+progress, and we release a fully offline, single-notebook reproduction that
+recomputes every signal from raw text in under 5 hours on two T4 GPUs.
+\end{abstract}
+
+\section{Introduction}
+
+Large language models are increasingly the interface through which Bengali
+speakers reach information, and they are fluent enough in Bengali that their
+errors read as confident, natural prose. The \bn{অলীকবচন} challenge
+operationalizes this problem as binary classification: each row carries a
+Bengali prompt, a candidate response, and either a supporting passage
+(\emph{context} rows) or \texttt{[NULL]} (\emph{no-context} rows); systems
+predict faithful (1) or hallucinated (0). The benchmark spans cultural-distance
+bands from globally stable facts (C0) through Bangladesh-specific knowledge
+(C1) to contested or time-sensitive facts (C2), and only 299 labeled samples
+are released---a validation set, not a training set.
+
+The two row types are different problems. Context rows reduce to
+\emph{grounding}: is the response supported by the passage? No-context rows
+require \emph{closed-book factuality}: is the response true? Our system
+(\S\ref{sec:system}) treats them as separate branches sharing one stacking
+recipe. Our contributions are: (i) an error analysis showing that the failure
+mode of LLM-judge ensembles on culturally specific content is systematic
+over-skepticism toward true facts (\S\ref{sec:analysis}); (ii) an
+evidence-grounded verification branch that directly addresses it
+(\S\ref{sec:retrieval}); (iii) a validation protocol that survives a
+299-sample regime (\S\ref{sec:validation}); and (iv) a fully offline
+reproduction package (\S\ref{sec:repro}).
+
+\section{System}
+\label{sec:system}
+
+Every signal is a per-row estimate of $P(\text{faithful}) \in [0,1]$, with
+$0.5$ meaning ``no information.'' Signals never make decisions; a per-branch
+logistic regression stacks them.
+
+\paragraph{Context branch.}
+(1)~\textbf{substring}: after stripping punctuation and whitespace, is the
+response a substring of the passage? This trivial rule is remarkably strong
+(macro-F1 $0.894$ alone) because most context-row responses are short
+extractive answers. (2)~\textbf{nli}: max entailment probability of the
+response against sentence-packed passage chunks under multilingual mDeBERTa
+\cite{laurer2022}. (3--4)~the two LLM judges below, prompted with the passage.
+
+\paragraph{No-context branch.}
+(3)~\textbf{judge14} and (4)~\textbf{judge32}: Qwen2.5-14B and
+Qwen2.5-32B-Instruct \cite{qwen2.5} (GPTQ Int4 \cite{frantar2023gptq}),
+zero-shot YES/NO factuality judgments. (5)~\textbf{selfv14} and
+(6)~\textbf{selfv32}: self-verification \cite{manakul2023selfcheckgpt}---the
+model answers the question itself, then a second call judges whether its
+answer and the candidate agree; the 32B variant uses three-way verdicts with
+token-level log-probabilities (below). (7)~\textbf{ret32}: retrieval-grounded
+verification (\S\ref{sec:retrieval}).
+
+\paragraph{Soft, three-way verdicts.}
+Binary YES/NO parsing discards calibration and, worse, forces a guess when the
+model has no basis for one. Wherever a signal feeds the 32B model, we prompt
+for \textsc{yes}/\textsc{no}/\textsc{unsure}, read the first generated token's
+top-20 log-probabilities, and set
+$P(\text{faithful}) = (p_Y + \tfrac{1}{2}p_U)/(p_Y + p_N + p_U)$.
+\textsc{unsure} thus lands at $0.5$---neutral for the stacker---instead of
+becoming a confidently wrong \textsc{no}.
+
+\paragraph{Stacking.}
+Signals are stacked per branch by L2-regularized logistic regression refit on
+the 299 samples at inference time. The decision threshold is the median of
+per-fold thresholds over $5$~seeds $\times$ $5$~stratified folds, chosen to
+maximize macro-F1 on training folds only.
+
+\section{Error analysis: skepticism is the failure mode}
+\label{sec:analysis}
+
+With six baseline no-context signals (two judges, two self-verifications,
+a cross-lingual check, and a first-version retrieval branch), we examined the
+167 no-context validation rows and asked: which rows does \emph{every} signal
+get wrong or abstain on? There were 23 such rows, and \textbf{all 23 were
+faithful}. Not one hallucinated row evaded every signal. Meanwhile,
+inter-judge agreement ranged $0.74$--$0.86$: adding more generic judges adds
+correlated skepticism, not information.
+
+The picture is specific: when a response asserts a true but obscure fact---a
+Bangladesh-specific date, a dictionary sense of an idiom like
+\bn{ধান্ধা}, a grammatical classification---parametric judges of any size
+default to disbelief. The gap between our system and a perfect one was not
+``detect more hallucinations''; it was ``stop disbelieving true things.''
+This reframing drove everything that follows: the \textsc{unsure} lane
+(uncertainty must not be spent as a NO vote) and evidence grounding (the only
+mechanism that can \emph{prove} an obscure true answer true).
+
+\section{Evidence-grounded verification}
+\label{sec:retrieval}
+
+\paragraph{Index.} We chunk Bengali Wikipedia (143{,}069 articles; HF
+\texttt{wikimedia/wikipedia}) into 375{,}604 passages of ${\sim}900$
+characters, up to six per article, embedded with bge-m3 \cite{bgem3}
+(normalized, fp16).
+
+\paragraph{Retrieval.} For each no-context row we embed two queries---the
+question alone, and question~$+$~response---take the union of the top-10
+neighbors of each, and rerank with bge-reranker-v2-m3 against
+``\emph{question} \bn{উত্তর:} \emph{response},'' keeping the top~4.
+
+\paragraph{Grounded judgment.} Qwen2.5-32B receives the evidence passages and
+the QA pair and must answer \textsc{yes} (evidence supports the answer),
+\textsc{no} (evidence contradicts it or shows a different answer), or
+\textsc{unsure} (evidence irrelevant or insufficient), with the instruction to
+\emph{never} answer \textsc{no} merely because the evidence does not mention
+the answer. This matters: verbatim answer-presence in retrieved evidence is
+non-discriminative (38\% of faithful vs.\ 35\% of hallucinated rows), and
+roughly 40\% of evidence sets are irrelevant---notably for word-meaning and
+grammar questions, where an encyclopedia is the wrong reference. The
+\textsc{unsure} lane routes exactly those cases to neutrality.
+
+Standalone, \texttt{ret32} is the strongest no-context signal we measured
+(macro-F1 $0.753$ vs.\ $0.688$ for the best judge variant), it recovers 7 of
+the 23 unanimously missed faithful rows, and the stacker assigns it the
+largest no-context weight ($1.88$).
+
+\section{Validation in a 299-sample regime}
+\label{sec:validation}
+
+Two early lessons shaped our protocol. First, we once reported an ensemble at
+$0.8059$ out-of-fold; seed-averaging revealed the honest value was
+$0.7946 \pm 0.0089$---the gain had been one favorable fold split. Second, a
+$+0.009$ OOF ``improvement'' that we submitted \emph{lost} 0.006 on the public
+leaderboard. Our protocol therefore: (i) every configuration is scored as the
+mean OOF macro-F1 over 5 seeds of 5-fold stratified CV, with thresholds chosen
+inside training folds; (ii) differences under ${\sim}0.02$ are treated as
+noise; (iii) submissions are spent only on gains that clear that bar. Under
+this protocol, local-to-leaderboard transfer was consistently $-0.03$, making
+the OOF a reliable compass. We also found that a stacker fit on 167
+no-context rows saturates quickly: abstention-indicator features, a
+BanglaBERT classifier fine-tuned on the 299 samples (OOF $0.524$, barely
+above chance---surface form does not reveal factuality), branch-specific
+feature pruning, and regularization sweeps were all neutral to negative.
+Signal quality, not stacking sophistication, is the binding constraint.
+
+\section{Results}
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+System & OOF & no-ctx & LB \\
+\midrule
+substring + constant & 0.682 & 0.345 & 0.666 \\
++ 14B judge suite & 0.795 & 0.649 & 0.748 \\
+5-signal ensemble & 0.793 & 0.675 & 0.752 \\
+7-signal (two judges) & 0.795 & 0.694 & 0.765 \\
++ judge32 (binary) & 0.803 & 0.717 & 0.759 \\
+\textbf{+ selfv32 + ret32} & \textbf{0.833} & \textbf{0.778} & \textbf{0.803} \\
+\midrule
+portable 7 (package) & 0.831 & 0.768 & 0.800 \\
+\bottomrule
+\end{tabular}
+\caption{Progression. OOF = 5-seed mean macro-F1 on the 299 samples
+(earlier rows re-scored under the final protocol); no-ctx = no-context branch;
+LB = public leaderboard. The final row is the fully offline Phase-2 package.}
+\label{tab:results}
+\end{table}
+
+Table~\ref{tab:results} traces the system. The two interventions motivated by
+the error analysis---\textsc{unsure}-safe 32B self-verification and
+evidence-grounded verification---account for the largest single jump
+($0.803 \rightarrow 0.833$ OOF, $+0.06$ on the no-context branch), and the
+public-leaderboard move ($0.765 \rightarrow 0.803$) landed exactly on the
+$-0.03$ transfer line. Context-branch performance was near-saturated
+throughout ($\sim$0.90; substring and the 32B judge are jointly wrong on only
+3 of 132 rows), confirming that closed-book verification of culturally
+specific facts is where this task is decided.
+
+\paragraph{Negative results.} Few-shot anti-skepticism prompting produced our
+best standalone judge (0.688) and rescued 10/23 hopeless rows, yet
+\emph{hurt} when stacked---with 167 training rows the stacker cannot learn
+when to trust an aggressive rescuer. Multilingual NLI underperformed the
+substring rule on context rows (0.635 vs.\ 0.894): short extractive answers
+make poor NLI hypotheses. Fine-tuned BanglaBERT was chance-level, as noted
+above.
+
+\section{Reproducibility}
+\label{sec:repro}
+
+Our Phase-2 package is a single Kaggle notebook that recomputes all seven
+portable signals from raw text---no cached predictions---and refits the
+stacker at run time. All artifacts (both Qwen GPTQ checkpoints, three
+encoders, a vLLM wheel set for offline installation, and the wiki index) are
+pinned as Kaggle artifacts; the notebook runs with internet disabled. Three
+signals from Phase 1 (a self-consistency 14B judge, a cross-lingual check,
+and the v1 retrieval branch) required a personal workstation; dropping them
+costs nothing measurable (OOF $0.831$ vs.\ $0.833$), so the package ships
+the portable seven. Verified end to end on the Phase-1 test set: 4.96 hours
+on 2$\times$T4 (9-hour budget), 97.7\% prediction agreement with our
+submitted system, public LB 0.800 vs.\ 0.803. Engineering notes: Bengali runs
+at roughly one token per character in Qwen's vocabulary, so grounding prompts
+need an 8{,}192-token window; GPTQ was chosen over AWQ because it runs on
+both P100 (sm60) and T4 (sm75).
+
+\section{Limitations and future work}
+
+About a third of the remaining unanimously missed rows are word-meaning and
+grammar questions for which Wikipedia is the wrong corpus; a Bengali
+Wiktionary index is the obvious next branch. Our wiki snapshot (Nov.\ 2023)
+predates recent facts, capping the C2 band. The 299-sample regime caps how
+much any stacker can learn; our per-branch linear model with
+seed-averaged thresholds is a floor, not a ceiling. Finally, our analysis is
+on the released samples; band-level conclusions (C1 vs.\ C2) await the
+organizers' post-competition analysis.
+
+\section*{Acknowledgments}
+We thank the organizers of Datathon 2.0 and the \bn{অলীকবচন} challenge.
+
+\bibliography{refs}
+
+\end{document}

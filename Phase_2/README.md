@@ -25,6 +25,7 @@ configuration: **0.803**.
 
 | file | role |
 |---|---|
+| `paper/paper.pdf` | 4-page ACL-format paper report (compile: `latexmk -xelatex paper.tex`) |
 | `phase2_pipeline.py` | the entire pipeline; cell 1 of the submission notebook |
 | `phase2_pipeline.ipynb` | the same, as an importable notebook |
 | `snapshots/snap_qwen14b.py` | pins Qwen2.5-14B-Instruct-GPTQ-Int4 (CPU kernel) |
@@ -93,3 +94,12 @@ noise (5-seed OOF 0.8311 vs 0.8327; the difference is far below the
 resolution of a 299-row validation set), so the package ships the portable
 set. Full ablations and the error analysis that motivated the
 evidence-grounding design are in `../Approach_1/results/RESULTS.md`.
+
+## Submission checklist (rules §3, top-30 teams)
+
+- [x] Runnable Kaggle notebook, offline, reproduces Phase-1 predictions
+      end-to-end within limits — `bengali-phase2-repro`, verified 4.96 h / LB 0.800
+- [x] 4-page paper report, ACL format, single PDF — `paper/paper.pdf`
+      (**TODO: replace teammate placeholder names in `paper/paper.tex`**)
+- [x] README describing environment, weights, and external models — this file
+- [ ] Submit via the form linked from the Discussion tab at the start of Phase 2
