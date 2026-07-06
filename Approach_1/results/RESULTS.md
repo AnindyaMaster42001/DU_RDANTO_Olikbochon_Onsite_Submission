@@ -236,3 +236,37 @@ reproducible by the organizers' rerun).
 
 Ops note for the paper: the vLLM wheel set upgrades torch/CUDA libs and must
 install AFTER the image-native encoder stages (libnvrtc mismatch otherwise).
+
+---
+
+## Wiktionary-grounded dictionary signal: LB 0.803 → 0.814 (+0.011)
+
+The over-skeptical no-context branch was killing true glosses on **dictionary-lookup
+rows** (`X এর ভাবার্থ / শাব্দিক অর্থ / অর্থ কী?`) — 155 no-context test rows, of which
+the submitted ensemble called only ~38 faithful vs a true rate ~41%. Wikipedia is the
+wrong book; **bn.wiktionary** is the right one.
+
+Pipeline (`kaggle_wikt_ground.py`, kernel `bengali-wikt-ground`, T4x2, internet on):
+fresh bnwiktionary dump → 70,202 headword→gloss entries (Kaggle dataset
+`bengali-wiktionary-glosses`) → bge-m3 dense retrieve the headword's glosses →
+Qwen-32B judges the candidate answer against them (three-way YES/NO/UNSURE, logprob-soft)
+→ `signal_wikt.json`. **Gate: trust the verdict only on an exact normalized-headword
+match, else abstain (0.5).**
+
+Why OOF can't score it: the labeled bucket is 27/299 rows (10 dict-covered) — a perfect
+fix moves 299-row macro-F1 <0.005. Validated per-row instead:
+- labeled exact-covered accuracy **9/10**;
+- test exact-covered = **101/155**; vs submitted: 52 agree, **43 rescues (0→1)**, 6 flips;
+- rescues spot-check as genuine recoveries (`ঢেঁড়স`→worthless person, `টিফিন`→afternoon
+  snack); correctly separates the right gloss of `নিজের ঢাক নিজে পেটা` (→1) from the
+  wrong-gloss version in the labeled set (→0).
+
+Submitted **rescue-only** (43 dict-confirmed 0→1, no flips; `submission_wikt_rescue.csv`):
+**public LB 0.814**. Complementary to the teammate `ভাবার্থ`-override 0.815 (different rows,
+single-word `শাব্দিক অর্থ`) — the two should stack.
+
+### Remaining headroom on this bucket
+- 54/155 test rows not exact-covered (paraphrase headwords, idioms absent from wiktionary);
+  add an idiom (বাগধারা) dictionary + fuzzy/multi-sense retrieval.
+- Held 6 flips (1→0): 2-3 are correct (`যমে ধরা`, `লাভের গাঁতি` were wrongly faithful) —
+  a `confflip` submission could recover them.
