@@ -270,3 +270,45 @@ single-word `শাব্দিক অর্থ`) — the two should stack.
   add an idiom (বাগধারা) dictionary + fuzzy/multi-sense retrieval.
 - Held 6 flips (1→0): 2-3 are correct (`যমে ধরা`, `লাভের গাঁতি` were wrongly faithful) —
   a `confflip` submission could recover them.
+
+---
+
+## Wiktionary idiom-grounding: OOF 0.8327 -> 0.8460 (clears submit gate)
+
+The 16 remaining hopeless rows are a *corpus* problem, not a prompt problem
+(the tiered-fallback idea was falsified: the meta-model already carries j32sv).
+~⅓ of them plus **14% of the no-context TEST set (162/1155)** are Bengali
+word/idiom-meaning questions that Wikipedia provably cannot answer (retrieval
+returns grammar/physics/fruit articles). Fix = the *right book*: **bn.wiktionary**.
+
+Pipeline (all on the VPS RTX PRO 6000; 32B grounding ~1 min):
+- `build_wikt.py` — parse `bnwiktionary-latest` (CPU, 7 s) -> `wikt_passages.jsonl`,
+  **73,444 entries** (15,182 idioms incl. 7,723 mined from the বাগধারা appendix
+  table + 58,262 words).
+- `wikt_retrieve.py` — bge-m3 dense retrieval, top-5 dictionary entries per no-ctx
+  query. Dense retrieval recovers variant spellings exact-lookup misses
+  (e.g. উজানের কই -> `উজানের কই/কৈ: সহজলভ্য বস্তু`).
+- `wikt_ground32.py` — Qwen2.5-32B-GPTQ (VPS, util 0.23, `gptq_marlin`,
+  `enforce_eager`) judges the given meaning vs the retrieved definition,
+  UNSURE-safe soft verdict. Gated to word/idiom queries -> `signal_ret32wikt.json`.
+
+Standalone accuracy splits sharply by question type:
+- **Idiom (ভাবার্থ): 12/13 = 0.92** — correctly passes true idioms AND rejects
+  false ones; all **75 idiom test rows grounded decisively**.
+- Word-meaning (শাব্দিক অর্থ): 7/14 = 0.50 — wrecked by dataset **label noise**
+  (চরণদাস/আঠা answers exactly match the dictionary yet are labeled hallucinated),
+  polysemy (any-sense matching), and factual leakage. Not used.
+
+So the vehicle is a **targeted idiom-only override**, not a meta-model feature
+(too sparse to weight) and not word-meaning (too noisy):
+
+| config | 5-seed OOF | hopeless rescued |
+|---|---|---|
+| baseline base8+j32sv+ret32 (LB 0.803) | 0.8327 | 0.8/16 |
+| **+ idiom-override** | **0.8460 ± 0.008** | 3.8/16 |
+| prune(−nli,−crosslingual) + idiom-override | 0.8507 ± 0.007 | 4.0/16 |
+
+`submission_wikt_override.csv` = 0.803 base with the idiom rule applied
+(flipped 26/75 idiom test predictions, net +18 faithful). Clears the 0.845 gate;
+awaiting LB confirmation. Byproduct: the dictionary **surfaced dataset label
+errors** on tricky word-meaning rows — a real ceiling on OOF for that slice.
