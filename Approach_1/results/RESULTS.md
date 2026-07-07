@@ -312,3 +312,24 @@ So the vehicle is a **targeted idiom-only override**, not a meta-model feature
 (flipped 26/75 idiom test predictions, net +18 faithful). Clears the 0.845 gate;
 awaiting LB confirmation. Byproduct: the dictionary **surfaced dataset label
 errors** on tricky word-meaning rows — a real ceiling on OOF for that slice.
+
+---
+
+## Self-answer self-consistency reasoning judge: LB 0.814 → 0.828 (+0.014)
+
+Error decomposition of the no-context branch: the mass is **factual world-knowledge**
+(factual bucket 65 labeled rows @ 0.723 OOF acc, whoq 38 @ 0.842) plus reasoning/negation
+MCQs ("কোনটি নয়", analogies). Every prior judge emits a bare one-word verdict — no
+reasoning, anchored on the given answer. Added `signal_sa` (`kaggle_selfanswer.py`, kernel
+`bengali-selfanswer`, T4x2): 32B **independently derives** the answer with chain-of-thought,
+sampled K=6 at temp 0.7, each chain votes YES/NO on the candidate; P = mean YES.
+
+Standalone it is *not* better (noctx 0.731, whoq 0.675 — closed-book knowledge is the wall,
+CoT can't invent facts). **But stacked it gives the biggest single-signal jump since ret32:**
+- 10-sig OOF 0.8319 → +sa 0.8447 (+0.0128); noctx 0.784 → 0.808.
+- Combined 11-sig + wikt rescue: **OOF 0.8512**, noctx 0.820, **factual bucket 0.723 → 0.785**.
+- Public LB **0.828** (predicted 0.825–0.827; OOF→LB transfer −0.023, in line with the −0.03 rule).
+
+Lesson: a decisive, differently-calibrated reasoning signal helps the stacker on borderline
+rows even when weaker alone. Knowledge remains the ceiling — next lever is **retrieval** for
+the factual mass (cross-lingual enwiki + fresh full bnwiki), not more closed-book prompting.
