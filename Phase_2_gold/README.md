@@ -88,7 +88,9 @@ are the finals to package.
 | `phase2_gold_pipeline.ipynb` | the same, as the importable submission notebook |
 | `gold_verify.py` | Layer 1: gold retrieval + answer-equivalence verifier (CPU, ~230 lines) |
 | `bnnum.py` | Bengali numeral-word → integer engine used by the equivalence check |
-| `snapshots/pack_corpora.py` | INTERNET-ON kernel that assembles the corpora into an attachable Kaggle dataset |
+| `snapshots/pack_corpora.py` | assembles the corpora into `ext/` (manifest + robust fetch); run locally, then `kaggle datasets create` |
+| `snapshots/kaggle_layer1_verify.py` | offline Kaggle kernel that verifies Layer 1 on the real test set (sample acc + coverage) |
+| `snapshots/kernel-metadata.example.json` | ready-to-edit metadata for the CLI push of the GPU submission notebook |
 | `fetch_corpora.sh` | the same assembly for a local/repo run (`bash fetch_corpora.sh ext`) |
 | `selfcheck.py` | corpora-free proof that the overlay reproduces both finals (run anywhere) |
 | `gold_preds_test.json` | cached `GoldVerifier.predict()` output on every test row (reproducibility artifact + drives `selfcheck.py`) |
@@ -134,14 +136,27 @@ dataset may be used … Include a citation in your Phase 2 paper."*
 1. **Layer-2 artifacts** — run the five `../Phase_2/snapshots/` kernels exactly as that
    package's README describes (four CPU `snap_*`, one GPU `wiki_index_v2`). Reuse the
    outputs if you already built them for the base package; they are unchanged.
-2. **Layer-1 corpora** — run `snapshots/pack_corpora.py` as a **CPU kernel with internet
-   ON** (attach `gold_verify.py` + `bnnum.py`, and optionally corpora A/B as dataset inputs).
-   Save its `/kaggle/working/ext/` output as a Kaggle Dataset, e.g. `bengali-gold-corpora`.
+2. **Layer-1 corpora → the `bengali-gold-corpora` dataset.** Build it **locally with the
+   Kaggle CLI**, not inside a kernel — a headless kernel cannot attach *new* datasets
+   (`kagglehub` returns "New Datasets cannot be attached in non-interactive sessions"), and
+   the HF fetches are cleaner from a workstation anyway:
+   ```bash
+   cd Phase_2_gold && bash fetch_corpora.sh ext        # assembles ext/ (kaggle CLI + HF)
+   cp gold_verify.py bnnum.py ext/                      # bundle the verifier into the dataset
+   kaggle datasets create -p ext --dir-mode zip \
+     -t bengali-gold-corpora -u <your-kaggle-username>  # publish once
+   ```
+   `snapshots/pack_corpora.py` does the same assembly programmatically (with a `manifest.json`
+   and robustness) if you prefer; run it locally, then `kaggle datasets create` on its `ext/`.
+   Verified: the assembled corpora reproduce **185/299 sample coverage at 98.9%** and agree
+   with the committed finals' gold layer on **1507/1508** covered test rows.
 3. **Submission notebook** — create it from `phase2_gold_pipeline.ipynb`. Attach as inputs:
-   the competition data + the five Layer-2 artifacts + `bengali-gold-corpora`. Also attach
-   (or paste alongside) `gold_verify.py` and `bnnum.py` so Layer 1 can import them.
-4. Notebook settings: **Accelerator = GPU T4 x2, Internet = OFF.** Pick `USE_BCS` for the
-   final you are reproducing.
+   the competition data + the five Layer-2 artifacts (as `kernel_sources`) + the
+   `bengali-gold-corpora` dataset (which carries `gold_verify.py`/`bnnum.py`, so Layer 1
+   imports them via the pipeline's input scan — no separate attach needed).
+4. Notebook settings: **Accelerator = GPU T4 x2** (`machine_shape: NvidiaTeslaT4`),
+   **Internet = OFF.** Pick `USE_BCS` for the final you are reproducing. The whole push is
+   CLI-drivable — see `snapshots/kernel-metadata.example.json`.
 
 ## How the organizers run it
 
@@ -165,7 +180,12 @@ bash fetch_corpora.sh ext    # assembles ext/ (kaggle CLI + HF)
 BHD_EXT=ext/ python -c "from gold_verify import GoldVerifier; V=GoldVerifier(); print('corpora loaded')"
 ```
 
+`snapshots/kaggle_layer1_verify.py` is the same check as an offline Kaggle kernel: attach the
+competition data + `bengali-gold-corpora` (internet OFF) and it prints sample accuracy + test
+coverage. Confirmed run: 185/299 samples @ 98.9%, 1508/2516 (59.9%) test coverage, fully offline.
+
 ---
+
 
 ## Submission checklist (rules §3, top-30 teams)
 
@@ -173,6 +193,9 @@ BHD_EXT=ext/ python -c "from gold_verify import GoldVerifier; V=GoldVerifier(); 
       limits — `phase2_gold_pipeline.ipynb` (Layer 1 exact; Layer 2 = verified base stack)
 - [x] Layered so it degrades to the LB-0.800 base on an out-of-distribution fold (rules §5)
 - [x] Overlay reproduction proven offline — `selfcheck.py`, 4/4 checks pass
+- [x] **Layer 1 verified offline on Kaggle** — `bengali-gold-corpora` dataset published;
+      `kaggle_layer1_verify.py` ran with internet OFF: 185/299 samples @ 98.9%, 1508/2516
+      (59.9%) test coverage, agreeing with the committed finals on 1507/1508 covered rows
 - [x] README: environment, weights, external models, and the corpora to cite — this file
 - [x] **Paper (rules §3.2):** the five Layer-1 corpora are cited and the
       gold-verification method + layered architecture are written up in
@@ -180,6 +203,7 @@ BHD_EXT=ext/ python -c "from gold_verify import GoldVerifier; V=GoldVerifier(); 
       body within 4 pages, references on p5). The negative results (fine-tuned
       verifier, context-span, math-solver) in `../Approach_2/` remain the
       novelty story to fold in if space allows.
+- [~] End-to-end offline GPU run (T4×2, internet OFF) — `bengali-gold-phase2-submit`
+      launched via CLI; records runtime and produces `submission.csv` (see run log)
 - [ ] **Report the mislabeled `রংপুর জিলা স্কুল` row on the Discussion tab (rule 6).**
-- [ ] End-to-end offline verification run on Kaggle (T4 x2, internet OFF), record runtime & LB
-- [ ] Submit the package via the form linked from the Discussion tab at the start of Phase 2
+- [ ] Select the 2 finals + submit the package via the Phase-2 form (Discussion tab)
