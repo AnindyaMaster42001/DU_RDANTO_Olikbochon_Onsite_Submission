@@ -174,10 +174,12 @@ BHD_EXT=ext/ python -c "from gold_verify import GoldVerifier; V=GoldVerifier(); 
 - [x] Layered so it degrades to the LB-0.800 base on an out-of-distribution fold (rules §5)
 - [x] Overlay reproduction proven offline — `selfcheck.py`, 4/4 checks pass
 - [x] README: environment, weights, external models, and the corpora to cite — this file
-- [ ] **Paper (rules §3.2):** add the five Layer-1 corpora to the citations, and add the
-      gold-verification method + the layered architecture to the write-up
-      (`../Phase_2/paper/`). The negative results (fine-tuned verifier, context-span,
-      math-solver) in `../Approach_2/` are the novelty story.
+- [x] **Paper (rules §3.2):** the five Layer-1 corpora are cited and the
+      gold-verification method + layered architecture are written up in
+      `../Phase_2/paper/main.tex` → `main.pdf` (updated to the 0.904 system;
+      body within 4 pages, references on p5). The negative results (fine-tuned
+      verifier, context-span, math-solver) in `../Approach_2/` remain the
+      novelty story to fold in if space allows.
 - [ ] **Report the mislabeled `রংপুর জিলা স্কুল` row on the Discussion tab (rule 6).**
 - [ ] End-to-end offline verification run on Kaggle (T4 x2, internet OFF), record runtime & LB
 - [ ] Submit the package via the form linked from the Discussion tab at the start of Phase 2
