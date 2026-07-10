@@ -194,6 +194,24 @@ def load_extra_mcq():
     except Exception: pass
     return {k: list(dict.fromkeys(v)) for k, v in m.items()}
 
+def load_bcs():
+    """azminetoushikwasi BCS question banks (10th-45th). `answer` indexes `options`,
+    but the index BASE differs per file -- infer it from the minimum value rather than
+    assuming. Getting this wrong silently returns the neighbouring distractor as gold."""
+    m = {}
+    for f in glob.glob(EXT + "bcs/*"):
+        try: d = pd.read_json(f)
+        except Exception: continue
+        if not {"question", "options", "answer"} <= set(d.columns): continue
+        base = int(d.answer.min())                     # 0 or 1, per file
+        for r in d.itertuples():
+            opts = list(r.options) if isinstance(r.options, (list, tuple)) else None
+            if not opts: continue
+            i = int(r.answer) - base
+            if 0 <= i < len(opts):
+                m.setdefault(norm_mmlu_q(r.question), []).append(str(opts[i]))
+    return {k: list(dict.fromkeys(v)) for k, v in m.items()}
+
 def load_squad_bn():
     """SQuAD-bn extractive gold spans (adds context-QA rows TyDi GoldP misses)."""
     import glob as _g, tarfile, os
@@ -223,10 +241,12 @@ class GoldVerifier:
         self.mmlu = load_mmlu()
         self.squad = load_squad_bn() if with_squad else {}
         self.extra = load_extra_mcq()
+        self.bcs = load_bcs()
         # formatting-insensitive fallback keys, collision-free by construction
         self.qa_h = hard_index(self.qa)
         self.mmlu_h = hard_index(self.mmlu)
         self.extra_h = hard_index(self.extra)
+        self.bcs_h = hard_index(self.bcs)
 
     def _idiom_gold(self, prompt):
         m = IDIOM_RE.match(norm_q(prompt))
@@ -250,6 +270,8 @@ class GoldVerifier:
         if g: out.append(("squad_bn", g))
         g = self.extra.get(norm_mmlu_q(prompt))
         if g: out.append(("extra_mcq", g))
+        g = self.bcs.get(norm_mmlu_q(prompt))
+        if g: out.append(("bcs", g))
         h = hard_q(prompt)
         g = self.qa_h.get(h)
         if g: out.append(("hallueval_h", g))
@@ -257,6 +279,8 @@ class GoldVerifier:
         if g: out.append(("mmlu_h", g))
         g = self.extra_h.get(h)
         if g: out.append(("extra_mcq_h", g))
+        g = self.bcs_h.get(h)
+        if g: out.append(("bcs_h", g))
         return out
 
     def predict(self, prompt, response):

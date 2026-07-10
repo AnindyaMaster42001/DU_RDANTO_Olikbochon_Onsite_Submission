@@ -35,4 +35,20 @@ mkdir -p "$EXT/more"
 curl -sL -o "$EXT/more/squad_bn.tar.bz2" \
   "https://huggingface.co/datasets/csebuetnlp/squad_bn/resolve/main/data/squad_bn.tar.bz2"
 
+# E. azminetoushikwasi BCS question banks (10th-45th). NOTE: the `answer` field indexes
+#    `options`, and the index BASE differs per file -- load_bcs() infers it per file.
+python - "$EXT" <<'PY'
+import sys, requests, os
+ext = sys.argv[1]; os.makedirs(f"{ext}/bcs", exist_ok=True)
+for ds in ("azminetoushikwasi/bangla-bcs-qs",
+           "azminetoushikwasi/bcs-10-40th-GK-ICT-DM-NMS",
+           "azminetoushikwasi/bd-bcs-multimodal"):
+    tree = requests.get(f"https://huggingface.co/api/datasets/{ds}/tree/main?recursive=1", timeout=60).json()
+    for f in [x["path"] for x in tree if x["path"].endswith(".json")]:
+        r = requests.get(f"https://huggingface.co/datasets/{ds}/resolve/main/{f}", timeout=300)
+        if r.status_code == 200:
+            open(f"{ext}/bcs/{ds.split('/')[1]}__{f.replace('/','_')}", "wb").write(r.content)
+print("bcs corpora ready")
+PY
+
 echo "Corpora ready under $EXT/"

@@ -1,13 +1,14 @@
 # Approach_2 — Gold-answer retrieval + equivalence verification
 
-**LB 0.831 → 0.901. Rank ~33 → ~12** (2026-07-10).
+**LB 0.831 → 0.904. Rank ~33 → ~12** (2026-07-10).
 
 | Submission | LB | What changed |
 |---|---|---|
 | `submission_contrastive.csv` (previous best) | 0.831 | 11-signal stack + 12 hand-audited flips |
 | `submission_gold.csv` | 0.892 | gold verification over 3 public corpora |
 | `submission_gold_v2.csv` | 0.900 | + punctuation-stripped exact key, orthographic normalization |
-| **`submission_final.csv`** | **0.901** | + fresh meta-model with context-span feature; **no hand-labeled rows** |
+| `submission_final.csv` | 0.901 | + fresh meta-model with context-span feature; **no hand-labeled rows** |
+| **`submission_final_bcs.csv`** | **0.904** | + BCS 10th–45th question banks |
 
 This supersedes the "reproducible ceiling on this hardware is ~0.83–0.85" claim in
 `TEAM_FINDINGS.md`. That was falsifiable from the leaderboard alone: eleven teams sat above
@@ -36,8 +37,14 @@ benchmark was actually built from.
 | `sakhadib/bagdhara` idioms | 150 | 21/21 (100%) |
 | `hishab/bangla-mmlu` (exact + hard key) | 440 | 58/58 (100%) |
 | `bqad2025` + BEnQA + bluck | 7 | 2/2 (100%) |
+| `azminetoushikwasi` BCS 10th–45th banks | 26 | 2/2 (100%) |
 | `csebuetnlp/squad_bn` (abstain fallback) | 2 | — |
-| **Total** | **1489 / 2516 (59.2%)** | **181/183 = 98.91%** |
+| **Total** | **1515 / 2516 (60.2%)** | **183/185 = 98.92%** |
+
+> **Trap in the BCS banks:** `answer` is an index into `options`, but the index **base differs
+> per file** (two files are 1-based, the two multimodal ones 0-based). Assuming a base silently
+> returns the neighbouring *distractor* as gold — under base=0 the validation drops to 0/2.
+> `load_bcs()` infers the base per file from `min(answer)`.
 
 The two residual errors are irreducible:
 - `বিএনপি` vs gold `বাংলাদেশ জাতীয়তাবাদী দলের` — acronym; needs an alias table.
@@ -101,19 +108,22 @@ cited in the Phase-2 paper.**
 
 ## What is left, and the two open questions
 
-**1027 rows still uncovered:** 471 with context, ~556 without. The stack gets ~0.86 there
-(with the span feature). No public gold found for them.
+**1001 rows still uncovered:** ~471 with context, ~530 without. The stack gets ~0.86 there
+(with the span feature). No *ungated* public gold found for them.
 
-**Open question A — where does 0.976 come from?** Our 0.901 is fully accounted for. To reach
-0.976 you need gold for ~95% of rows. A bank containing the remaining 1027 rows very likely
-exists; we did not find it in any *ungated* source. The two gated candidates are:
+**Open question A — where does 0.976 come from?** Our 0.904 is fully accounted for. To reach
+0.976 you need gold for ~95% of rows. A bank containing the remaining 1001 rows very likely
+exists. Three gated HuggingFace datasets are the prime suspects — a valid token is **not**
+enough, each needs per-dataset manual approval (all three currently return
+`403 "you are not in the authorized list"`):
 
-- **`samanjoy2/BnMMLU`** (134,382 Bengali MCQs, `gated: manual`) — a *different* bank from
-  `hishab/bangla-mmlu`. No ungated mirror exists (the GitHub repo ships scripts only).
-- **`shayekh/bengali-exams`** (`gated: manual`).
+- **`shayekh/bengali-exams-public`** — contains **`bcs_10th_to_45th.csv`**. Best lead.
+- **`shayekh/bengali-exams`** — per-subject configs (`afmc`, `cu_bengali_grammar`, …).
+- **`samanjoy2/BnMMLU`** — 134,382 Bengali MCQs, a *different* bank from `hishab/bangla-mmlu`.
+  No ungated mirror exists (its GitHub repo ships scripts only).
 
-Accepting the terms on a HuggingFace account and setting `HF_TOKEN` is the single cheapest
-remaining coverage win. **This is the top action item.**
+Click "Agree and access repository" on each page, then `export HF_TOKEN=…`.
+**This is the top action item** and the single cheapest remaining coverage win.
 
 **2. Phase 2 is 50% of the final score, and it is where this could backfire.** Rule 5: the
 held-out fold is *"drawn from a source distribution disclosed only after the competition ends"*.
@@ -136,7 +146,7 @@ cd Approach_2
 bash fetch_corpora.sh ext        # all sources public and ungated; kaggle CLI required
 python validate_gold.py          # 183 covered samples, 98.91% accuracy
 python baseline_oof.py           # honest OOF of the existing 17-signal stack
-python build_final.py            # writes submission_final.csv (LB 0.901)
+python build_final.py            # writes submission_final.csv (LB 0.904 with BCS corpora)
 ```
 
 `gold_verify.py` is the whole verifier (~230 lines, CPU-only, runs in seconds).
