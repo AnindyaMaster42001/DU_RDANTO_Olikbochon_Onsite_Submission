@@ -203,7 +203,11 @@ coverage. Confirmed run: 185/299 samples @ 98.9%, 1508/2516 (59.9%) test coverag
       body within 4 pages, references on p5). The negative results (fine-tuned
       verifier, context-span, math-solver) in `../Approach_2/` remain the
       novelty story to fold in if space allows.
-- [~] End-to-end offline GPU run (T4×2, internet OFF) — `bengali-gold-phase2-submit`
-      launched via CLI; records runtime and produces `submission.csv` (see run log)
+- [x] **End-to-end offline GPU run (T4×2, internet OFF)** — `bengali-gold-phase2-submit`
+      ran to completion in **~2h07m** (well under the 9h cap; faster than the base 4.96h
+      because Layer 1 removes 60% of rows from the LLM workload). Layer 1 decided 1508 rows
+      (361 overriding the stack); `submission.csv` covered rows match the in-kernel gold
+      exactly and `final_bcs` on 1507/1508. The ~3.6% difference on uncovered rows is the
+      documented portable-stack-vs-workstation-meta substitution (within OOF noise).
 - [ ] **Report the mislabeled `রংপুর জিলা স্কুল` row on the Discussion tab (rule 6).**
 - [ ] Select the 2 finals + submit the package via the Phase-2 form (Discussion tab)
