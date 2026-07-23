@@ -34,7 +34,7 @@
 
 \newcommand{\bn}[2]{\emph{#1} (`#2')}   % romanized Bengali + gloss
 
-\title{\vspace{-2.2em}\textbf{Olikbochon: Two-Branch, Evidence-Grounded, and\\
+\title{\vspace{-2.2em}\textbf{Oleekbochon: Two-Branch, Evidence-Grounded, and\\
 Gold-Verified Detection of Bengali LLM Hallucinations}}
 
 \author{
@@ -51,7 +51,7 @@ Department of Computer Science and Engineering, University of Dhaka
     \vspace{-2.5em}
     \begin{abstract}
     \noindent
-    We describe our system for the \emph{Olikbochon} Bengali LLM
+    We describe our system for the \emph{Oleekbochon} Bengali LLM
     Hallucination Detection Challenge, which asks whether a Bengali response
     is faithful or hallucinated, with the heaviest weight on
     Bangladesh-specific (C1) facts. Our central observation is that the task
@@ -91,7 +91,7 @@ can name the author of \emph{Bidrohi} correctly in English yet misattribute it
 in Bengali; it can narrate the Liberation War in fluent prose with the wrong
 dates. These errors do not sound wrong---they sound like Bengali---which is
 what makes them dangerous \citep{ji2023survey,guerreiro2023hallucinations}. The
-\emph{Olikbochon} challenge (\emph{``the mirage of language''}) frames this as
+\emph{Oleekbochon} challenge (\emph{``the mirage of language''}) frames this as
 binary detection: given a prompt, a candidate response, and an optional source
 \texttt{context}, predict whether the response is faithful ($\text{label}=1$)
 or hallucinated ($\text{label}=0$). The leaderboard scores binary F1 on the
