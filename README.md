@@ -11,6 +11,21 @@ hallucinated class, weighted toward the Bangladesh-specific (C1) band.
 **Best public LB: 0.904.** The two selected finals are `submission_final_bcs.csv` (0.904)
 and `submission_final.csv` (0.901).
 
+## Onsite submission (Phase 3)
+
+The onsite-round deliverables live at the repository root, following the required naming
+convention (`TeamName_...`, team = **DU_RDANTO**):
+
+| File | Contents |
+|---|---|
+| `DU_RDANTO_report.pdf` | Technical report, ≤4 pages excl. references (same as `Phase_2/paper/main.pdf`) |
+| `DU_RDANTO_presentation.pdf` | Onsite presentation slides *(added by the team)* |
+| `DU_RDANTO_inference_notebook.ipynb` | The final inference notebook submitted in the previous phase (same as `Phase_2/phase2_gold_pipeline.ipynb`) |
+
+No training notebook is included: the system uses only off-the-shelf open-weight models plus
+deterministic gold-answer verification, so there is no fine-tuning/training pipeline (this
+deliverable is optional).
+
 ## Layout
 
 ```
