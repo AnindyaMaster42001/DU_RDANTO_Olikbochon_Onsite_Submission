@@ -1,6 +1,6 @@
 % =====================================================================
 %  DU_RDANTO — Onsite (Phase-3) presentation
-%  Olikbochon: Bengali LLM Hallucination Detection Challenge
+%  Oleekbochon: Bengali LLM Hallucination Detection Challenge
 %  Build with XeLaTeX (native Bengali via fontspec + Kalpurush):
 %      xelatex DU_RDANTO_presentation.tex   (run twice)
 % =====================================================================
@@ -37,7 +37,14 @@
 \setbeamercolor{block body}{fg=ink,bg=panel}
 
 % ---- fonts -------------------------------------------------------------
-\newfontfamily\bnfont{Kalpurush}[Script=Bengali]
+% Prefer Kalpurush; fall back so the deck still builds on a machine that
+% does not have it installed (Noto Sans Bengali ships with most TeX/Linux
+% setups; FreeSerif is the last resort).
+\IfFontExistsTF{Kalpurush}
+  {\newfontfamily\bnfont{Kalpurush}[Script=Bengali]}
+  {\IfFontExistsTF{Noto Sans Bengali}
+     {\newfontfamily\bnfont{Noto Sans Bengali}[Script=Bengali]}
+     {\newfontfamily\bnfont{FreeSerif}[Script=Bengali]}}
 \newcommand{\bn}[1]{{\bnfont #1}}
 % Bengali phrase with a small English gloss
 \newcommand{\bng}[2]{{\bnfont #1}~{\footnotesize\itshape\color{soft}(#2)}}
@@ -45,7 +52,7 @@
 % ---- frametitle template ----------------------------------------------
 \setbeamerfont{frametitle}{series=\bfseries,size=\Large}
 \setbeamertemplate{frametitle}{%
-  \vspace{0.6em}%
+  \vspace{0.3em}%
   \begin{beamercolorbox}[wd=\paperwidth,leftskip=0.7cm,rightskip=0.7cm]{frametitle}%
     \usebeamerfont{frametitle}\insertframetitle%
     {\color{accent}\rule[0.4ex]{0pt}{0pt}}\\[-0.2em]%
@@ -54,12 +61,22 @@
 }
 
 % ---- footline ----------------------------------------------------------
+% The leading \vspace is deliberate: it is reserved out of \textheight, so it
+% guarantees a clear gap between frame content and the footer. Without it a
+% frame that ends flush at the bottom prints straight over the footer text.
 \setbeamertemplate{footline}{%
+  \vspace{0.5em}%
   \hbox{\begin{beamercolorbox}[wd=\paperwidth,ht=2.4ex,dp=1.2ex,leftskip=0.7cm,rightskip=0.7cm]{}%
-    {\color{soft}\footnotesize Team DU\_RDANTO \;\textbullet\; Olikbochon — Bengali LLM Hallucination Detection}%
+    {\color{soft}\footnotesize Team DU\_RDANTO \;\textbullet\; Oleekbochon — Bengali LLM Hallucination Detection}%
     \hfill{\color{soft}\footnotesize\insertframenumber}%
   \end{beamercolorbox}}%
 }
+
+% ---- vertical rhythm ---------------------------------------------------
+% Block separation is left at the beamer default on purpose: tightening it
+% globally makes two stacked blocks butt against each other. Height is
+% recovered per-frame instead (see the \footnotesize / \vspace trims below).
+\setlength{\parskip}{0pt}
 
 \setbeamertemplate{itemize item}{\small\raise0.2ex\hbox{\color{accent}$\blacktriangleright$}}
 \setbeamertemplate{itemize subitem}{\scriptsize\raise0.2ex\hbox{\color{accent}$\bullet$}}
@@ -81,21 +98,21 @@
   \end{tikzpicture}
   \vspace{0.15cm}
   {\color{white}\hspace{0.7cm}\footnotesize Datathon 2.0 \; \textbullet\; Institute of Policy Dynamics \; \textbullet\; IUTCS \hfill Onsite Round (Phase 3)\hspace{0.7cm}}
-  \vspace{1.7cm}
+  \vspace{1.15cm}
 
   \begin{center}
-    {\LARGE\bfseries\color{primary} Olikbochon\par}
+    {\LARGE\bfseries\color{primary} Oleekbochon\par}
     \vspace{0.25em}
     {\large\color{ink} Two-Branch, Evidence-Grounded \& Gold-Verified\\ Detection of Bengali LLM Hallucinations\par}
     \vspace{0.35em}
     {\bnfont\large\color{soft} অলীকবচন — ভাষার মরীচিকা\par}
-    \vspace{1.3em}
+    \vspace{0.95em}
     {\color{accent}\rule{6cm}{1.5pt}}\par
-    \vspace{1.0em}
+    \vspace{0.8em}
     {\large\bfseries Anindya Kundu \quad Kabya Mithun Saha \quad Muhaiminul Islam Ninad \quad Fayek Ahmed\par}
-    \vspace{0.5em}
+    \vspace{0.45em}
     {\color{soft} Team \textbf{DU\_RDANTO} \;\textbullet\; Department of Computer Science and Engineering, University of Dhaka\par}
-    \vspace{1.1em}
+    \vspace{0.8em}
     {\footnotesize Public leaderboard binary-F1 \;\metric{0.904}\; \textbullet\; deterministic gold layer + evidence-grounded ensemble\par}
   \end{center}
 \end{frame}
@@ -115,7 +132,9 @@
       \small
       \setbeamercolor{block body}{bg=panel}
       \begin{block}{Prompt}
-        \bng{`বিদ্রোহী' কবিতাটি কে রচনা করেছেন?}{Who wrote the poem ``Bidrohi''?}
+        % Quotes are typeset in the Latin font on purpose: not every Bengali
+        % font carries the curly quote glyphs, and a missing one prints as tofu.
+        `\bn{বিদ্রোহী}' \bng{কবিতাটি কে রচনা করেছেন?}{Who wrote the poem ``Bidrohi''?}
       \end{block}
       \vspace{-0.2em}
       {\color{good}\rule{\linewidth}{1pt}}\\[-0.1em]
@@ -125,9 +144,9 @@
       {\footnotesize\color{soft} Same fluent register — only a fact separates them.}
     \end{column}
   \end{columns}
-  \vspace{0.4em}
+  \vspace{0.15em}
   \begin{block}{Cultural-distance bands \;\textmd{\small(the metric is weighted toward C1)}}
-    \textbf{C0} globally stable \;\textbullet\; \metric{C1} Bangladesh-specific \;\textbullet\; \textbf{C2} contested / time-sensitive.
+    \small \textbf{C0} globally stable \;\textbullet\; \metric{C1} Bangladesh-specific \;\textbullet\; \textbf{C2} contested / time-sensitive.
   \end{block}
 \end{frame}
 
@@ -141,9 +160,9 @@
         \item Columns: \texttt{prompt\_bn}, \texttt{response\_bn}, \texttt{context} (\texttt{[NULL]} when closed-book).
         \item \metric{1{,}155 (46\%)} of test rows have \textbf{no context}.
       \end{itemize}
-      \vspace{0.3em}
+      \vspace{0.15em}
       \begin{block}{Scoring metric}
-        \small Binary \metric{F1 on the hallucinated class}, weighted toward the \metric{C1} band. (Public LB reports a softer macro-F1; we track the real class-0 metric internally.)
+        \footnotesize Binary \metric{F1 on the hallucinated class}, weighted toward the \metric{C1} band. (Public LB reports a softer macro-F1; we track the real class-0 metric internally.)
       \end{block}
     \end{column}
     \begin{column}{0.48\textwidth}
@@ -160,9 +179,9 @@
         hallucinated (0)& 136   & --- \\
         \bottomrule
       \end{tabular}
-      \vspace{0.8em}
+      \vspace{0.6em}
       \begin{block}{Design goal}
-        With only 299 labels, the goal is \textbf{generalization, not fitting}: every decision judged on 5-seed\,$\times$\,5-fold OOF.
+        \footnotesize With only 299 labels, the goal is \textbf{generalization, not fitting}: every decision judged on 5-seed\,$\times$\,5-fold OOF.
       \end{block}
     \end{column}
   \end{columns}
@@ -244,10 +263,10 @@
       \end{block}
     \end{column}
   \end{columns}
-  \vspace{0.4em}
+  \vspace{0.15em}
   \hrule height 0pt
   \begin{center}\begin{minipage}{0.95\textwidth}
-    \small\color{soft} \textbf{\color{primary}Why several judges:} differing prompt/quantization/decoding \emph{decorrelate} their errors — yet $\sim$44\% of no-context questions are abstained on \emph{even in English}: parametric recall hits a wall, so external knowledge is needed.
+    \footnotesize\color{soft} \textbf{\color{primary}Why several judges:} differing prompt/quantization/decoding \emph{decorrelate} their errors — yet $\sim$44\% of no-context questions are abstained on \emph{even in English}: parametric recall hits a wall, so external knowledge is needed.
   \end{minipage}\end{center}
 \end{frame}
 
@@ -299,21 +318,22 @@
   \begin{columns}[T]
     \begin{column}{0.55\textwidth}
       Grounding's logical endpoint: retrieve not the evidence but the \textbf{published answer}.
-      \begin{itemize}
+      \begin{itemize}\setlength{\itemsep}{0.25em}
         \item The benchmark is seeded from \emph{public} Bengali corpora — TyDiQA, bangla-mmlu, BCS banks, bagdhara, squad\_bn.
         \item So for most rows a gold answer is \emph{already published}: look it up by a formatting-insensitive question key.
         \item Decide by a \textbf{conservative equivalence check} — \textbf{no model invoked}.
       \end{itemize}
+      \vspace{-0.6em}
       \begin{block}{Conservative by design}
-        Bengali numeral\,$\leftrightarrow$\,word arithmetic \;\textbullet\; multi-sense idioms \;\textbullet\; cross-script \textbf{abstention}.
+        \footnotesize Bengali numeral\,$\leftrightarrow$\,word arithmetic \;\textbullet\; multi-sense idioms \;\textbullet\; cross-script \textbf{abstention}.
       \end{block}
     \end{column}
     \begin{column}{0.45\textwidth}
       \centering
       \begin{block}{The decisive layer}
-        Coverage \metric{60.2\%} of the test set\\ at \metric{98.9\%} accuracy\\[0.3em]
-        CPU-only, deterministic\\[0.6em]
-        \Large public LB \;\bad{0.815}~$\rightarrow$~\good{0.904}
+        Coverage \metric{60.2\%} of the test set\\ at \metric{98.9\%} accuracy\\[0.25em]
+        CPU-only, deterministic\\[0.45em]
+        \large public LB \;\bad{0.815}~$\rightarrow$~\good{0.904}
       \end{block}
       {\footnotesize\color{soft} Concentrated on exactly the C1 facts the task rewards.}
     \end{column}
@@ -341,7 +361,7 @@
 % ===================== 11. RESULTS =====================
 \begin{frame}{Results: honest OOF tracks the leaderboard}
   \centering
-  \small
+  \footnotesize
   \begin{tabular}{lccc}
     \toprule
     System & OOF macro-F1 & no-ctx & public LB \\
@@ -357,16 +377,16 @@
     \;+ \textbf{gold verification}       & --- & --- & \metric{\textbf{0.904}} \\
     \bottomrule
   \end{tabular}
-  \vspace{0.7em}
+  \vspace{0.5em}
   \begin{columns}[T]
     \begin{column}{0.5\textwidth}
       \begin{block}{Tight transfer}
-        OOF $\to$ LB gap $\approx\!-0.03$ at every checkpoint — the 299-row harness is a trustworthy compass.
+        \footnotesize OOF $\to$ LB gap $\approx\!-0.03$ at every checkpoint — the 299-row harness is a trustworthy compass.
       \end{block}
     \end{column}
     \begin{column}{0.5\textwidth}
       \begin{block}{Where the gains came from}
-        The last, largest jumps are all \textbf{grounding} — evidence, dictionary, then the gold answer.
+        \footnotesize The last, largest jumps are all \textbf{grounding} — evidence, dictionary, then the gold answer.
       \end{block}
     \end{column}
   \end{columns}
@@ -380,18 +400,20 @@
         \textbf{Layer 1} gold verifier (CPU, exact) $\;\to\;$ \textbf{Layer 2} portable 7-signal LLM stack. Off-distribution fold $\Rightarrow$ Layer 1 abstains everywhere and it runs as the verified base — \emph{cannot} score below it.
       \end{block}
       \begin{block}{Compute budget (§4)}
-        Offline, open-weight only, \metric{4.96\,h} on \metric{2$\times$T4} ($<$9\,h cap), \metric{$\sim$37\,GB} ($<$50\,GB). GPTQ (not AWQ) runs on both P100 (sm60) \& T4 (sm75).
+        \footnotesize Offline, open-weight only, \metric{4.96\,h} on \metric{2$\times$T4} ($<$9\,h cap), \metric{$\sim$37\,GB} ($<$50\,GB). GPTQ (not AWQ) runs on both P100 (sm60) \& T4 (sm75).
       \end{block}
     \end{column}
     \begin{column}{0.48\textwidth}
       \begin{block}{Clean under the foundational rules}
+        \small
         \begin{itemize}
           \item \textbf{Rule 4b} — no hand labeling: every covered row is reached \emph{programmatically}.
           \item \textbf{Rule 5} — all five public corpora \emph{cited} in the paper.
           \item \textbf{Rule 6} — reported the mislabeled row \bn{রংপুর জিলা স্কুল} on the Discussion tab rather than fitting it.
         \end{itemize}
       \end{block}
-      {\footnotesize\color{soft} Final score $\approx$ 50\% Phase-2 held-out + 20\% private LB + 10\% each paper / presentation / novelty.}
+      \vspace{0.2em}
+      {\scriptsize\color{soft} Final score $\approx$ 50\% Phase-2 held-out + 20\% private LB + 10\% each paper / presentation / novelty.}
     \end{column}
   \end{columns}
 \end{frame}
