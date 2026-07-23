@@ -1,0 +1,438 @@
+% =====================================================================
+%  DU_RDANTO — Onsite (Phase-3) presentation
+%  Olikbochon: Bengali LLM Hallucination Detection Challenge
+%  Build with XeLaTeX (native Bengali via fontspec + Kalpurush):
+%      xelatex DU_RDANTO_presentation.tex   (run twice)
+% =====================================================================
+\documentclass[aspectratio=169,11pt,t]{beamer}
+
+\usetheme{default}
+\useinnertheme{rectangles}
+\usefonttheme{professionalfonts}
+\setbeamertemplate{navigation symbols}{}
+
+\usepackage{fontspec}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{amssymb}
+
+% ---- palette: clean academic light -------------------------------------
+\definecolor{primary}{HTML}{123B63}   % deep navy
+\definecolor{accent}{HTML}{2A7F8E}    % teal
+\definecolor{good}{HTML}{2E7D46}      % faithful green
+\definecolor{bad}{HTML}{B23A3A}       % hallucinated red
+\definecolor{ink}{HTML}{22272B}
+\definecolor{soft}{HTML}{5B6670}
+\definecolor{panel}{HTML}{EEF3F5}
+\definecolor{rule}{HTML}{D3DCE0}
+
+\setbeamercolor{normal text}{fg=ink}
+\setbeamercolor{frametitle}{fg=primary}
+\setbeamercolor{structure}{fg=accent}
+\setbeamercolor{itemize item}{fg=accent}
+\setbeamercolor{itemize subitem}{fg=accent}
+\setbeamercolor{block title}{fg=white,bg=primary}
+\setbeamercolor{block body}{fg=ink,bg=panel}
+
+% ---- fonts -------------------------------------------------------------
+\newfontfamily\bnfont{Kalpurush}[Script=Bengali]
+\newcommand{\bn}[1]{{\bnfont #1}}
+% Bengali phrase with a small English gloss
+\newcommand{\bng}[2]{{\bnfont #1}~{\footnotesize\itshape\color{soft}(#2)}}
+
+% ---- frametitle template ----------------------------------------------
+\setbeamerfont{frametitle}{series=\bfseries,size=\Large}
+\setbeamertemplate{frametitle}{%
+  \vspace{0.6em}%
+  \begin{beamercolorbox}[wd=\paperwidth,leftskip=0.7cm,rightskip=0.7cm]{frametitle}%
+    \usebeamerfont{frametitle}\insertframetitle%
+    {\color{accent}\rule[0.4ex]{0pt}{0pt}}\\[-0.2em]%
+    {\color{accent}\rule{2.6cm}{2.2pt}}%
+  \end{beamercolorbox}%
+}
+
+% ---- footline ----------------------------------------------------------
+\setbeamertemplate{footline}{%
+  \hbox{\begin{beamercolorbox}[wd=\paperwidth,ht=2.4ex,dp=1.2ex,leftskip=0.7cm,rightskip=0.7cm]{}%
+    {\color{soft}\footnotesize Team DU\_RDANTO \;\textbullet\; Olikbochon — Bengali LLM Hallucination Detection}%
+    \hfill{\color{soft}\footnotesize\insertframenumber}%
+  \end{beamercolorbox}}%
+}
+
+\setbeamertemplate{itemize item}{\small\raise0.2ex\hbox{\color{accent}$\blacktriangleright$}}
+\setbeamertemplate{itemize subitem}{\scriptsize\raise0.2ex\hbox{\color{accent}$\bullet$}}
+
+% small helpers
+\newcommand{\metric}[1]{{\color{primary}\bfseries #1}}
+\newcommand{\good}[1]{{\color{good}\bfseries #1}}
+\newcommand{\bad}[1]{{\color{bad}\bfseries #1}}
+
+\begin{document}
+
+% ===================== 1. TITLE =====================
+{%
+\setbeamertemplate{footline}{}
+\begin{frame}[plain]
+  \begin{tikzpicture}[remember picture,overlay]
+    \fill[primary] (current page.north west) rectangle ([yshift=-2.0cm]current page.north east);
+    \fill[accent]  ([yshift=-2.0cm]current page.north west) rectangle ([yshift=-2.16cm]current page.north east);
+  \end{tikzpicture}
+  \vspace{0.15cm}
+  {\color{white}\hspace{0.7cm}\footnotesize Datathon 2.0 \; \textbullet\; Institute of Policy Dynamics \; \textbullet\; IUTCS \hfill Onsite Round (Phase 3)\hspace{0.7cm}}
+  \vspace{1.7cm}
+
+  \begin{center}
+    {\LARGE\bfseries\color{primary} Olikbochon\par}
+    \vspace{0.25em}
+    {\large\color{ink} Two-Branch, Evidence-Grounded \& Gold-Verified\\ Detection of Bengali LLM Hallucinations\par}
+    \vspace{0.35em}
+    {\bnfont\large\color{soft} অলীকবচন — ভাষার মরীচিকা\par}
+    \vspace{1.3em}
+    {\color{accent}\rule{6cm}{1.5pt}}\par
+    \vspace{1.0em}
+    {\large\bfseries Anindya Kundu \quad Kabya Mithun Saha \quad Muhaiminul Islam Ninad \quad Fayek Ahmed\par}
+    \vspace{0.5em}
+    {\color{soft} Team \textbf{DU\_RDANTO} \;\textbullet\; Department of Computer Science and Engineering, University of Dhaka\par}
+    \vspace{1.1em}
+    {\footnotesize Public leaderboard binary-F1 \;\metric{0.904}\; \textbullet\; deterministic gold layer + evidence-grounded ensemble\par}
+  \end{center}
+\end{frame}
+}
+
+% ===================== 2. PROBLEM =====================
+\begin{frame}{The problem: fluent Bengali, confidently wrong}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+      \begin{itemize}
+        \item LLMs are strikingly fluent in Bengali (280M+ speakers) and \emph{just as frequently} wrong.
+        \item The errors don't \emph{sound} wrong — they sound like Bengali. That is what makes them dangerous.
+        \item \textbf{Task:} given \texttt{prompt\_bn}, \texttt{response\_bn}, and an optional \texttt{context}, decide the response is \good{faithful (1)} or \bad{hallucinated (0)}.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \small
+      \setbeamercolor{block body}{bg=panel}
+      \begin{block}{Prompt}
+        \bng{`বিদ্রোহী' কবিতাটি কে রচনা করেছেন?}{Who wrote the poem ``Bidrohi''?}
+      \end{block}
+      \vspace{-0.2em}
+      {\color{good}\rule{\linewidth}{1pt}}\\[-0.1em]
+      \good{Faithful:}~ \bn{কাজী নজরুল ইসলাম}\\[0.5em]
+      {\color{bad}\rule{\linewidth}{1pt}}\\[-0.1em]
+      \bad{Hallucinated:}~ \bn{রবীন্দ্রনাথ ঠাকুর}\\[0.3em]
+      {\footnotesize\color{soft} Same fluent register — only a fact separates them.}
+    \end{column}
+  \end{columns}
+  \vspace{0.4em}
+  \begin{block}{Cultural-distance bands \;\textmd{\small(the metric is weighted toward C1)}}
+    \textbf{C0} globally stable \;\textbullet\; \metric{C1} Bangladesh-specific \;\textbullet\; \textbf{C2} contested / time-sensitive.
+  \end{block}
+\end{frame}
+
+% ===================== 3. TASK & DATA =====================
+\begin{frame}{Task \& data}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \begin{itemize}
+        \item \metric{299} labeled sample rows (163 faithful / 136 hallucinated) — \emph{not} a training set, a validation compass.
+        \item \metric{2{,}516} unlabeled test rows.
+        \item Columns: \texttt{prompt\_bn}, \texttt{response\_bn}, \texttt{context} (\texttt{[NULL]} when closed-book).
+        \item \metric{1{,}155 (46\%)} of test rows have \textbf{no context}.
+      \end{itemize}
+      \vspace{0.3em}
+      \begin{block}{Scoring metric}
+        \small Binary \metric{F1 on the hallucinated class}, weighted toward the \metric{C1} band. (Public LB reports a softer macro-F1; we track the real class-0 metric internally.)
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \centering
+      \small
+      \begin{tabular}{lcc}
+        \toprule
+        & \bfseries samples & \bfseries test \\
+        \midrule
+        rows            & 299   & 2{,}516 \\
+        with context    & 132   & 1{,}361 \\
+        no context      & 167   & 1{,}155 \\
+        faithful (1)    & 163   & --- \\
+        hallucinated (0)& 136   & --- \\
+        \bottomrule
+      \end{tabular}
+      \vspace{0.8em}
+      \begin{block}{Design goal}
+        With only 299 labels, the goal is \textbf{generalization, not fitting}: every decision judged on 5-seed\,$\times$\,5-fold OOF.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===================== 4. KEY INSIGHT =====================
+\begin{frame}{Key insight: the task is two problems, not one}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Context present \;$\Rightarrow$\; \emph{grounding}}
+        Is the response supported by the passage? Extractive — substring overlap + one LLM judge nearly solve it.
+      \end{block}
+      \begin{block}{No context \;$\Rightarrow$\; \emph{closed-book factuality}}
+        Does the model \emph{know} the answer? This branch holds essentially \textbf{all} the scoring opportunity.
+      \end{block}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \centering
+      A trivial baseline splits cleanly:\\[0.7em]
+      \begin{tabular}{lc}
+        \toprule
+        branch & baseline macro-F1 \\
+        \midrule
+        context (grounding)     & \good{0.894} \\
+        no-context (closed-book)& \bad{0.345} \\
+        \bottomrule
+      \end{tabular}
+      \vspace{0.9em}
+      \begin{block}{Consequence}
+        Route every row to a branch and fit a \textbf{separate stacker per branch} — worth more than any single model.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===================== 5. FAILURE MODE =====================
+\begin{frame}{The dominant failure is one-sided}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+      \begin{itemize}
+        \item On the 167 no-context sample rows, the \metric{23} rows that \emph{every} signal gets wrong are \good{all faithful}.
+        \item \textbf{Not one} hallucinated row evades all signals.
+        \item Judges are systematically \bad{over-skeptical}: true-but-obscure C1 facts get flagged as hallucinated.
+        \item This one-sided bias — not random error — is the gap to the top of the leaderboard.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{The remedy is knowledge, not scale}
+        Over-skepticism is fixed by giving the judge the \emph{right evidence} — then the \emph{right answer}.\\[0.4em]
+        Everything that follows targets this bias directly.
+      \end{block}
+      \vspace{0.3em}
+      {\footnotesize\color{soft} Adding more parametric judges saturates (agreement 0.74–0.86); gains come only from external knowledge.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===================== 6. SIGNAL SUITE =====================
+\begin{frame}{The signal suite}
+  Each signal emits a per-row $P(\text{faithful})\in[0,1]$; a per-branch stacker combines them.
+  \vspace{0.5em}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Cheap grounding}
+        \begin{itemize}
+          \item \textbf{Substring} overlap (response vs.\ context) — dominant on the context branch.
+          \item \textbf{NLI} (mDeBERTa-v3-XNLI) — decorrelated minor feature.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{block}{LLM judges (Qwen2.5, GPTQ-Int4)}
+        \begin{itemize}
+          \item 14B self-consistency judge
+          \item 14B answer-then-compare self-verifier
+          \item 32B single-pass judge + 3-way self-verify
+          \item Cross-lingual consistency (ask in English)
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{0.4em}
+  \hrule height 0pt
+  \begin{center}\begin{minipage}{0.95\textwidth}
+    \small\color{soft} \textbf{\color{primary}Why several judges:} differing prompt/quantization/decoding \emph{decorrelate} their errors — yet $\sim$44\% of no-context questions are abstained on \emph{even in English}: parametric recall hits a wall, so external knowledge is needed.
+  \end{minipage}\end{center}
+\end{frame}
+
+% ===================== 7. RET32 =====================
+\begin{frame}{Evidence-grounded 32B judging (ret32)}
+  \begin{columns}[T]
+    \begin{column}{0.56\textwidth}
+      Our strongest \emph{closed-book} signal reads each answer against retrieved evidence, not the model's parameters.
+      \begin{itemize}
+        \item Bengali-Wikipedia index: \metric{438{,}788} articles $\to$ \metric{335{,}628} passages.
+        \item Dense retrieval \textbf{bge-m3} $\to$ rerank \textbf{bge-reranker-v2-m3} $\to$ 32B judge.
+        \item \textbf{UNSURE-safe} three-way verdict: missing evidence maps to \metric{0.5}, never a false ``hallucinated''.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \begin{block}{Impact}
+        Standalone macro-F1 \metric{0.753} (prev.\ best 0.688); decisive on every row; rescues \metric{7 of 23} faithful rows every other signal missed.\\[0.3em]
+        Earns the \textbf{largest no-context stacker weight}.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===================== 8. DICTIONARY GROUNDING =====================
+\begin{frame}{Dictionary grounding: the ``right book''}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \begin{itemize}
+        \item Idiom \& word-meaning questions are \metric{14\%} (162 / 1{,}155) of no-context rows.
+        \item Wikipedia \emph{provably} cannot answer them — dense retrieval returns grammar and physics articles.
+        \item Fix = the correct corpus: we parse \textbf{bn.wiktionary} into \metric{73{,}444} entries (15{,}182 idioms).
+        \item Deployed as a \textbf{targeted idiom-only override}: idiom precision \good{0.92}, net $+18$ faithful.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \small
+      \begin{block}{Idiom examples (bhabartho)}
+        \bng{জো-হুকুমের দল}{yes-men} $\to$ \bn{আজ্ঞাবহ, চামচা}\\[0.5em]
+        \bng{উজানের কই}{easily-obtained thing}\\[0.5em]
+        \bng{ধান্ধা}{a dishonest scheme}
+      \end{block}
+      {\footnotesize\color{soft} An encyclopedia has no idiom glosses; a dictionary does.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===================== 9. GOLD VERIFICATION =====================
+\begin{frame}{Gold-answer verification — the breakthrough}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      Grounding's logical endpoint: retrieve not the evidence but the \textbf{published answer}.
+      \begin{itemize}
+        \item The benchmark is seeded from \emph{public} Bengali corpora — TyDiQA, bangla-mmlu, BCS banks, bagdhara, squad\_bn.
+        \item So for most rows a gold answer is \emph{already published}: look it up by a formatting-insensitive question key.
+        \item Decide by a \textbf{conservative equivalence check} — \textbf{no model invoked}.
+      \end{itemize}
+      \begin{block}{Conservative by design}
+        Bengali numeral\,$\leftrightarrow$\,word arithmetic \;\textbullet\; multi-sense idioms \;\textbullet\; cross-script \textbf{abstention}.
+      \end{block}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \centering
+      \begin{block}{The decisive layer}
+        Coverage \metric{60.2\%} of the test set\\ at \metric{98.9\%} accuracy\\[0.3em]
+        CPU-only, deterministic\\[0.6em]
+        \Large public LB \;\bad{0.815}~$\rightarrow$~\good{0.904}
+      \end{block}
+      {\footnotesize\color{soft} Concentrated on exactly the C1 facts the task rewards.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===================== 10. STACKING =====================
+\begin{frame}{Per-branch stacking}
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \begin{itemize}
+        \item \textbf{Per-branch logistic regression}, refit at run time on the 299 labeled rows.
+        \item Weights \& decision thresholds by \metric{5-seed $\times$ 5-fold} nested cross-validation (threshold = CV median).
+        \item Top no-context weight $\to$ evidence grounding; 32B self-verify \& cross-lingual add complementary weight; context branch carried by substring + judges.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.45\textwidth}
+      \begin{block}{The lesson}
+        Judge agreement is 0.74–0.86 and the ensemble \emph{saturates}. Gains come from new \textbf{knowledge} (retrieval, dictionary, gold) — \emph{not} new model scale.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===================== 11. RESULTS =====================
+\begin{frame}{Results: honest OOF tracks the leaderboard}
+  \centering
+  \small
+  \begin{tabular}{lccc}
+    \toprule
+    System & OOF macro-F1 & no-ctx & public LB \\
+    \midrule
+    Substring + constant (baseline)      & 0.682 & 0.345 & 0.666 \\
+    \;+ 14B judge                        & 0.765 & 0.649 & --- \\
+    \;+ cross-lingual                    & 0.779 & 0.670 & --- \\
+    \;+ v1 retrieval (5 sig.)            & 0.793 & 0.675 & 0.752 \\
+    \;+ 2nd judge \& self-verify (7 sig.)& 0.795 & 0.708 & 0.765 \\
+    \;+ 32B judge (8 sig.)               & 0.803 & 0.717 & 0.759 \\
+    \;+ 32B self-verify + \textbf{ret32} & 0.833 & 0.778 & 0.803 \\
+    \;+ wiktionary override              & 0.846 & --- & 0.815 \\
+    \;+ \textbf{gold verification}       & --- & --- & \metric{\textbf{0.904}} \\
+    \bottomrule
+  \end{tabular}
+  \vspace{0.7em}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Tight transfer}
+        OOF $\to$ LB gap $\approx\!-0.03$ at every checkpoint — the 299-row harness is a trustworthy compass.
+      \end{block}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Where the gains came from}
+        The last, largest jumps are all \textbf{grounding} — evidence, dictionary, then the gold answer.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===================== 12. RULEBOOK COMPLIANCE =====================
+\begin{frame}{Phase-2 package \& rulebook compliance}
+  \begin{columns}[T]
+    \begin{column}{0.52\textwidth}
+      \begin{block}{Layered, degrades gracefully}
+        \textbf{Layer 1} gold verifier (CPU, exact) $\;\to\;$ \textbf{Layer 2} portable 7-signal LLM stack. Off-distribution fold $\Rightarrow$ Layer 1 abstains everywhere and it runs as the verified base — \emph{cannot} score below it.
+      \end{block}
+      \begin{block}{Compute budget (§4)}
+        Offline, open-weight only, \metric{4.96\,h} on \metric{2$\times$T4} ($<$9\,h cap), \metric{$\sim$37\,GB} ($<$50\,GB). GPTQ (not AWQ) runs on both P100 (sm60) \& T4 (sm75).
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Clean under the foundational rules}
+        \begin{itemize}
+          \item \textbf{Rule 4b} — no hand labeling: every covered row is reached \emph{programmatically}.
+          \item \textbf{Rule 5} — all five public corpora \emph{cited} in the paper.
+          \item \textbf{Rule 6} — reported the mislabeled row \bn{রংপুর জিলা স্কুল} on the Discussion tab rather than fitting it.
+        \end{itemize}
+      \end{block}
+      {\footnotesize\color{soft} Final score $\approx$ 50\% Phase-2 held-out + 20\% private LB + 10\% each paper / presentation / novelty.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===================== 13. NOVELTY =====================
+\begin{frame}{Novelty}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{block}{A grounding trilogy}
+        \begin{enumerate}
+          \item Right \emph{evidence} — reranked bnwiki passages.
+          \item Right \emph{book} — a bn.wiktionary idiom dictionary Wikipedia structurally lacks.
+          \item Right \emph{answer} — deterministic gold-answer verification from the benchmark's own source corpora.
+        \end{enumerate}
+      \end{block}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{block}{Measured the knowledge wall}
+        Negative results, honestly reported: cross-lingual enwiki, bigger open models, and a math self-solver \textbf{do not} break the C1 wall — grounding does.
+      \end{block}
+      \begin{block}{Discipline}
+        Every lever gated on honest 5-seed$\times$5-fold OOF before spending a leaderboard submission.
+      \end{block}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+% ===================== 14. CONCLUSION =====================
+\begin{frame}{Conclusion}
+  \begin{itemize}
+    \item Bengali hallucination detection is \textbf{two problems}, and its dominant failure is \textbf{one-sided skepticism} toward true-but-obscure, culturally-situated facts.
+    \item Progress came not from larger judges but from the \textbf{right evidence} and then the \textbf{right answer}: reranked Wikipedia passages, a Wiktionary idiom dictionary, and the published gold answer checked by a conservative equivalence test.
+    \item The system reaches public-LB binary-F1 \metric{0.904} and reproduces \textbf{fully offline} within the Phase-2 budget.
+  \end{itemize}
+  \vspace{1.0em}
+  \begin{center}
+    {\color{accent}\rule{6cm}{1.2pt}}\\[0.7em]
+    {\large\bfseries\color{primary} Thank you} \;\textbullet\; Team DU\_RDANTO\\[0.3em]
+    {\footnotesize\color{soft} Anindya Kundu \;\textbullet\; Kabya Mithun Saha \;\textbullet\; Muhaiminul Islam Ninad \;\textbullet\; Fayek Ahmed}\\[0.2em]
+    {\footnotesize\color{soft} Department of Computer Science and Engineering, University of Dhaka}
+  \end{center}
+\end{frame}
+
+\end{document}
